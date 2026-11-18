@@ -56,9 +56,9 @@
   flex-shrink: 0;
   pointer-events: none;
 }
-/* Show the correct icon via classes set by password-toggle.js */
-.pw-toggle.is-hidden .pw-eye-open { display: block; }
-.pw-toggle.is-visible .pw-eye-off { display: block; }
+/* Slashed eye when password is hidden; open eye when visible. */
+.pw-toggle.is-hidden .pw-eye-off { display: block; }
+.pw-toggle.is-visible .pw-eye-open { display: block; }
 
 body {
   font-family: var(--font);
