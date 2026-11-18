@@ -31,6 +31,22 @@ npm start                   # http://localhost:3000
 
 With no Paystack key the shop works but buying is switched off. With no SMTP settings, email features are hidden. With no Google/Discord keys, those buttons are hidden.
 
+## GitHub Pages
+
+`casualdavid.com.ng` points at GitHub Pages. Pages was not publishing this repo, so every URL returned GitHub's own "There isn't a GitHub Pages site here" page.
+
+The HTML is in `public/`. A branch publish can only use the repo root or `/docs`, so turning the old "main branch, / folder" setting back on would still 404: there is no `index.html` at the root. `.github/workflows/pages.yml` publishes `public/` instead, and does not run Jekyll.
+
+Pages can only serve the HTML, CSS, and images. Accounts, the shop, and payments need the Node server in the next section. Use one host for the domain, not both.
+
+After this is merged:
+
+1. On GitHub, open **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**.
+2. Under **Custom domain**, enter `casualdavid.com.ng`. GitHub shows a TXT record named `_github-pages-challenge.casualdavid.com.ng`. Add that exact record at the DNS host (WhoGoHost), then come back and verify. There is no verification record today.
+3. If **Publish site** did not run on the merge, open **Actions → Publish site → Run workflow**.
+
+Leave the existing A records (`185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`) and the `www` CNAME (`casualdavid.github.io`) in place while the site stays on Pages.
+
 ## Deploy on your VPS (Ubuntu example)
 
 1. **Install** Node **22 or newer** (the SQLite library requires it) and nginx: `sudo apt install nginx`, with Node from nodesource or `nvm`. Check with `node -v`.
@@ -46,7 +62,7 @@ With no Paystack key the shop works but buying is switched off. With no SMTP set
    `sudo -u casualdavid npm run create-admin -- you@example.com`
 6. **Start the service**: copy `deploy/casual-david.service` to `/etc/systemd/system/`, then `sudo systemctl enable --now casual-david`.
 7. **Web server and HTTPS**: use `deploy/nginx.conf`, then `sudo certbot --nginx -d your-domain`.
-8. **Point your domain's DNS at the VPS.** (The repo's `CNAME` file was for GitHub Pages and is not used by this server.)
+8. **Point the domain's DNS at the VPS** (replace the GitHub Pages A records). The Node server does not read the `CNAME` file; that file is only for GitHub Pages. Do not leave the domain on Pages and the VPS at the same time.
 9. **Paystack**: in the dashboard add the webhook `https://your-domain/api/paystack/webhook` and put your secret key in `.env`. Test with a `sk_test_` key first.
 
 ### Updating
