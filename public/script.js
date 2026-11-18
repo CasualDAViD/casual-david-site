@@ -1,38 +1,13 @@
-// Public site - loads mods and socials from localStorage (set via admin)
+// Public site: loads mods and social links from the server.
 
-function getMods() {
-  try {
-    return JSON.parse(localStorage.getItem('cd_mods') || '[]');
-  } catch {
-    return [];
-  }
-}
+let modsCache = [];
+let currentCurrency = 'USD';
 
-function getSocials() {
-  try {
-    return JSON.parse(localStorage.getItem('cd_socials') || '{}');
-  } catch {
-    return {};
-  }
-}
-
-// Approximate rates (update as needed)
-const RATES = { USD: 1, NGN: 1550, EUR: 0.92 };
-let currentCurrency = localStorage.getItem('cd_currency') || 'USD';
-
-function formatPrice(usdAmount, currency) {
-  const amount = usdAmount * RATES[currency];
-  if (currency === 'NGN') return '₦' + Math.round(amount).toLocaleString();
-  if (currency === 'EUR') return '€' + amount.toFixed(2);
-  return '$' + amount.toFixed(2);
-}
-
-function renderMods() {
+function renderModsGrid() {
   const grid = document.getElementById('mods-grid');
   if (!grid) return;
 
-  const mods = getMods();
-  if (mods.length === 0) {
+  if (modsCache.length === 0) {
     grid.innerHTML = `
       <div style="grid-column:1/-1; text-align:center; padding:4rem 1rem; color:#64748b;">
         <p style="font-size:1.1rem;">No mods listed yet.</p>
@@ -44,45 +19,70 @@ function renderMods() {
   grid.innerHTML = `
     <div style="grid-column:1/-1; text-align:right; margin-bottom:1rem;">
       <label style="font-size:0.9rem; margin-right:0.5rem;">Currency:</label>
-      <select id="currency-select" onchange="changeCurrency(this.value)" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1;">
+      <select id="currency-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1;">
         <option value="USD" ${currentCurrency==='USD'?'selected':''}>USD</option>
         <option value="NGN" ${currentCurrency==='NGN'?'selected':''}>NGN</option>
         <option value="EUR" ${currentCurrency==='EUR'?'selected':''}>EUR</option>
       </select>
     </div>
-  ` + mods.map(mod => `
-    <div class="mod-card" onclick="location.href='product.html?id=${mod.id}'" style="cursor:pointer;">
+  ` + modsCache.map(mod => `
+    <div class="mod-card" data-id="${escapeHtml(mod.id)}" style="cursor:pointer;">
       <div class="mod-header">
         <div class="mod-icon">
-          ${mod.icon ? `<img src="${mod.icon}" alt="">` : '<span>📦</span>'}
+          ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>\u{1F4E6}</span>'}
         </div>
         <div class="mod-title">
           <strong>${escapeHtml(mod.name)}</strong>
-          <span class="mod-cat">${mod.category || 'Mod'}</span>
+          <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
         </div>
       </div>
       <p class="mod-desc">${escapeHtml(mod.description)}</p>
       <div class="mod-footer">
         <div class="mod-price">${formatPrice(mod.price, currentCurrency)}</div>
-        <button class="buy-btn" onclick="event.stopPropagation(); if(!localStorage.getItem('cd_user')){location.href='login.html';return;}location.href='checkout.html?id=${mod.id}'">
-          Buy
-        </button>
+        ${mod.available
+          ? `<button class="buy-btn" data-buy="${escapeHtml(mod.id)}">Buy</button>`
+          : '<button class="buy-btn" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>'}
       </div>
     </div>
   `).join('');
+
+  document.getElementById('currency-select').addEventListener('change', (e) => changeCurrency(e.target.value));
+  grid.querySelectorAll('.mod-card').forEach(card => {
+    card.addEventListener('click', () => { location.href = 'product.html?id=' + encodeURIComponent(card.dataset.id); });
+  });
+  grid.querySelectorAll('[data-buy]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      location.href = 'checkout.html?id=' + encodeURIComponent(btn.dataset.buy);
+    });
+  });
+}
+
+async function renderMods() {
+  const grid = document.getElementById('mods-grid');
+  if (!grid) return;
+  grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#64748b;">Loading\u2026</p>';
+  try {
+    const [, data] = await Promise.all([getConfig(), api('/api/mods')]);
+    modsCache = data.mods;
+  } catch (err) {
+    grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#dc2626;">${escapeHtml(err.message)}</p>`;
+    return;
+  }
+  currentCurrency = getCurrency();
+  renderModsGrid();
 }
 
 function changeCurrency(cur) {
   currentCurrency = cur;
-  localStorage.setItem('cd_currency', cur);
-  renderMods();
+  setCurrency(cur);
+  renderModsGrid();
 }
 
-function renderSocials() {
+function renderSocials(s) {
   const container = document.getElementById('socials-cards');
   if (!container) return;
 
-  const s = getSocials();
   const platforms = [
     {
       key: 'youtube',
@@ -137,7 +137,7 @@ function renderSocials() {
   ];
 
   container.innerHTML = platforms.map(p => `
-    <a href="${p.url}" target="_blank" rel="noopener" class="social-card-ref">
+    <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener" class="social-card-ref">
       <div class="sc-top">
         <div class="sc-icon-wrap">${p.icon}</div>
         <div>
@@ -154,47 +154,11 @@ function renderSocials() {
   `).join('');
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/[&<>"']/g, m => ({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[m]));
-}
-
-function buyMod(modId, usdAmount, modName) {
-  const email = prompt('Enter your email address to receive the download link:');
-  if (!email || !email.includes('@')) {
-    alert('Please enter a valid email address.');
-    return;
-  }
-
-  const publicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'; // Replace with your Paystack public key
-
-  if (publicKey.includes('xxxxxxxx')) {
-    alert('Paystack key not configured yet. Update it in script.js');
-    return;
-  }
-
-  const currency = currentCurrency;
-  const amount = usdAmount * RATES[currency];
-  const amountInSmallest = Math.round(amount * 100); // kobo/cents
-
-  const handler = PaystackPop.setup({
-    key: publicKey,
-    email: email,
-    amount: amountInSmallest,
-    currency: currency,
-    ref: 'CD-' + modId + '-' + Date.now(),
-    metadata: { custom_fields: [{ display_name: 'Mod', variable_name: 'mod_name', value: modName }] },
-    callback: function(response) {
-      alert('Payment successful! 🎉\nReference: ' + response.reference + '\nYou will receive the download link at ' + email);
-    },
-    onClose: function() {
-      alert('Payment window closed.');
-    }
-  });
-  handler.openIframe();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   renderMods();
-  renderSocials();
+  if (document.getElementById('socials-cards')) {
+    let socials = {};
+    try { socials = await api('/api/socials'); } catch (e) { /* show defaults */ }
+    renderSocials(socials);
+  }
 });

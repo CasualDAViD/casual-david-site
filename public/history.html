@@ -7,6 +7,14 @@
   <title>Purchase History • Casual_DAViD</title>
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    .order-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.25rem; margin-bottom: 1rem;
+      background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.8); border-radius: 16px; box-shadow: var(--shadow); }
+    [data-theme="dark"] .order-row { background: rgba(30,41,59,0.7); border-color: rgba(255,255,255,0.1); }
+    .order-icon { width: 48px; height: 48px; border-radius: 10px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 1.4rem; }
+    .order-icon img { width: 100%; height: 100%; object-fit: cover; }
+  </style>
 </head>
 <body>
   <header class="header"><div class="header-inner">
@@ -44,7 +52,7 @@
   <section class="section">
     <div class="container" style="max-width:720px;">
       <h1 style="margin-bottom:1.5rem;">Purchase history</h1>
-      <p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>
+      <div id="orders"><p style="color:var(--text-muted);">Loading&hellip;</p></div>
     </div>
   </section>
 
@@ -54,6 +62,39 @@
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
+  <script src="api.js"></script>
+  <script>
+    (async function () {
+      const box = document.getElementById('orders');
+      const user = await getMe();
+      if (!user) { location.replace('login.html?next=' + encodeURIComponent('/history.html')); return; }
+      let orders;
+      try {
+        orders = (await api('/api/orders')).orders;
+      } catch (err) {
+        box.innerHTML = '<p style="color:#dc2626;">' + escapeHtml(err.message) + '</p>';
+        return;
+      }
+      if (orders.length === 0) {
+        box.innerHTML = '<p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>';
+        return;
+      }
+      box.innerHTML = orders.map(o => `
+        <div class="order-row">
+          <div class="order-icon">${o.mod.icon ? `<img src="${escapeHtml(o.mod.icon)}" alt="">` : '<span>\u{1F4E6}</span>'}</div>
+          <div style="flex:1; min-width:180px;">
+            <strong>${escapeHtml(o.mod.name)}</strong>
+            <div style="font-size:0.85rem; color:#64748b;">
+              ${new Date(o.paidAt * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+              \u2022 ${formatKobo(o.amountKobo)} \u2022 Ref ${escapeHtml(o.reference)}
+            </div>
+          </div>
+          ${o.mod.downloadable
+            ? `<a class="buy-btn" style="text-decoration:none; display:inline-block;" href="/api/downloads/${encodeURIComponent(o.mod.id)}">Download</a>`
+            : '<span style="font-size:0.85rem; color:#64748b;">File coming soon</span>'}
+        </div>`).join('');
+    })();
+  </script>
   <script src="theme.js"></script>
   <script src="account.js"></script>
 </body>

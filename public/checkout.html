@@ -27,7 +27,6 @@
   </style>
 </head>
 <body>
-<script>if(!localStorage.getItem("cd_user")){location.href="login.html";}</script>
   <header class="header"><div class="header-inner">
       <a href="index.html" class="logo">
         <img src="avatar.png" alt="Casual_DAViD" class="logo-img">
@@ -61,128 +60,102 @@
 
 
   <div class="checkout-page">
-    <a href="#" class="back" onclick="history.back(); return false;">← Back</a>
+    <a href="#" class="back" onclick="history.back(); return false;">&larr; Back</a>
     <div class="checkout-layout">
       <div class="checkout-card">
         <h2>Secure checkout</h2>
-        <div class="order-item" id="order-item"></div>
-        <h3 style="font-size:1rem; margin-bottom:0.75rem;">Payment method</h3>
-        <div class="methods">
-          <label class="method selected"><input type="radio" name="pay" value="card" checked> Credit or debit card</label>
-          <label class="method"><input type="radio" name="pay" value="paypal"> PayPal</label>
-          <label class="method"><input type="radio" name="pay" value="apple"> Apple Pay</label>
-          <label class="method"><input type="radio" name="pay" value="google"> Google Pay</label>
-        </div>
+        <div class="order-item" id="order-item"><span style="color:#64748b;">Loading&hellip;</span></div>
+        <h3 style="font-size:1rem; margin-bottom:0.75rem;">Payment</h3>
+        <p style="font-size:0.95rem; line-height:1.5; color:#475569;">
+          You will pay on Paystack's secure page, where you can choose card, bank transfer or USSD.
+          Your download unlocks as soon as the payment is confirmed.
+        </p>
       </div>
       <div class="checkout-card">
         <h2>Order summary</h2>
         <div class="summary-row"><span>Order price</span><span id="price"></span></div>
         <div class="summary-row"><span>Delivery</span><span>Instant</span></div>
-        <div class="summary-row summary-total"><span>Total</span><span id="total"></span></div>
-        <button class="pay-btn" onclick="placeOrder()">Pay now</button>
-        <p style="font-size:0.8rem; color:#64748b; margin-top:0.75rem; text-align:center;">This is a demo checkout. Connect a real payment processor for live payments.</p>
+        <div class="summary-row summary-total"><span>You pay</span><span id="total"></span></div>
+        <p id="charge-note" style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;"></p>
+        <button class="pay-btn" id="pay-btn" disabled>Pay now</button>
+        <p id="pay-msg" role="alert" style="font-size:0.9rem; margin-top:0.75rem; text-align:center; color:#dc2626;"></p>
       </div>
     </div>
   </div>
 
   <footer class="footer">
     <div class="container footer-inner">
-      <p>© 2026 Casual_DAViD</p>
+      <p>&copy; 2026 Casual_DAViD</p>
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
 
+  <script src="api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    const mods = JSON.parse(localStorage.getItem('cd_mods') || '[]');
-    const mod = mods.find(m => m.id === id);
-    const RATES = { USD: 1, NGN: 1550, EUR: 0.92 };
-    const currency = localStorage.getItem('cd_currency') || 'USD';
+    const modId = params.get('id') || '';
+    const payBtn = document.getElementById('pay-btn');
+    const payMsg = document.getElementById('pay-msg');
 
-    function formatPrice(usd) {
-      const amount = usd * RATES[currency];
-      if (currency === 'NGN') return '₦' + Math.round(amount).toLocaleString();
-      if (currency === 'EUR') return '€' + amount.toFixed(2);
-      return '$' + amount.toFixed(2);
+    function showError(text, html) {
+      if (html) payMsg.innerHTML = html; else payMsg.textContent = text;
     }
 
-    if (mod) {
+    async function init() {
+      const user = await getMe();
+      if (!user) {
+        location.replace('login.html?next=' + encodeURIComponent(location.pathname + location.search));
+        return;
+      }
+      let mod, cfg;
+      try {
+        cfg = await getConfig();
+        mod = (await api('/api/mods/' + encodeURIComponent(modId))).mod;
+      } catch (err) {
+        document.getElementById('order-item').textContent = err.status === 404 ? 'That mod could not be found.' : err.message;
+        return;
+      }
+
+      const currency = getCurrency();
       document.getElementById('order-item').innerHTML = `
-        ${mod.icon ? `<img src="${mod.icon}" alt="">` : '<div style="width:56px;height:56px;background:#f1f5f9;border-radius:10px;"></div>'}
+        ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<div style="width:56px;height:56px;background:#f1f5f9;border-radius:10px;"></div>'}
         <div>
-          <strong>${mod.name}</strong>
+          <strong>${escapeHtml(mod.name)}</strong>
           <div style="font-size:0.85rem; color:#64748b;">Delivery: Instant</div>
-        </div>
-      `;
-      document.getElementById('price').textContent = formatPrice(mod.price);
-      document.getElementById('total').textContent = formatPrice(mod.price);
+        </div>`;
+      document.getElementById('price').textContent = formatPrice(mod.price, currency);
+      // Paystack always charges in naira, so show exactly what will be taken.
+      const ngn = formatPrice(mod.price, 'NGN', cfg.rates);
+      document.getElementById('total').textContent = ngn;
+      document.getElementById('charge-note').textContent = 'You will be charged in Nigerian naira (' + ngn + ').';
+
+      if (!mod.available) { showError('This mod is not available to buy yet.'); return; }
+      if (!cfg.payments) { showError('Payments are not set up yet. Please check back soon.'); return; }
+      payBtn.disabled = false;
     }
 
-    document.querySelectorAll('.method').forEach(m => {
-      m.addEventListener('click', () => {
-        document.querySelectorAll('.method').forEach(x => x.classList.remove('selected'));
-        m.classList.add('selected');
-        m.querySelector('input').checked = true;
-      });
-    });
-
-    function placeOrder() {
-      const method = document.querySelector('input[name="pay"]:checked').value;
-      alert('Demo: Order placed with ' + method + '!\n\nIn a real site this would process payment and send the download link.');
-    }
-  </script>
-<script src="theme.js"></script>
-<script src="account.js"></script>
-  <script src="https://js.paystack.co/v1/inline.js"></script>
-  <script>
-    // Replace with your Paystack PUBLIC key (starts with pk_test_ or pk_live_)
-    const PAYSTACK_PUBLIC_KEY = "pk_live_b51b021fec555662946ae5de4c0c33d1790b4e00";
-
-    function payWithPaystack(email, amountUSD, productName) {
-      // Convert USD to NGN (rough rate — update as needed)
-      const rate = 1600;
-      const amountNGN = Math.round(amountUSD * rate);
-      const amountKobo = amountNGN * 100;
-
-      const handler = PaystackPop.setup({
-        key: PAYSTACK_PUBLIC_KEY,
-        email: email || "customer@example.com",
-        amount: amountKobo,
-        currency: "NGN",
-        ref: "CD_" + Date.now(),
-        metadata: { product: productName },
-        callback: function(response) {
-          alert("Payment successful! Reference: " + response.reference);
-          // Save purchase locally
-          try {
-            const purchases = JSON.parse(localStorage.getItem("cd_purchases") || "[]");
-            purchases.push({ product: productName, ref: response.reference, date: new Date().toISOString() });
-            localStorage.setItem("cd_purchases", JSON.stringify(purchases));
-          } catch {}
-          location.href = "history.html";
-        },
-        onClose: function() {
-          console.log("Payment window closed");
+    payBtn.addEventListener('click', async () => {
+      payBtn.disabled = true;
+      payBtn.textContent = 'Redirecting to Paystack\u2026';
+      showError('');
+      try {
+        const r = await api('/api/orders', { method: 'POST', json: { modId } });
+        location.href = r.authorizationUrl;
+      } catch (err) {
+        payBtn.textContent = 'Pay now';
+        if (err.code === 'already_owned') {
+          payBtn.disabled = true;
+          showError('', 'You already own this. <a href="history.html">Download it from your purchase history</a>.');
+        } else {
+          payBtn.disabled = false;
+          showError(err.message);
         }
-      });
-      handler.openIframe();
-    }
-
-    // Hook the pay button
-    document.addEventListener("DOMContentLoaded", () => {
-      const payBtn = document.querySelector(".pay-btn");
-      if (payBtn) {
-        payBtn.onclick = () => {
-          const user = JSON.parse(localStorage.getItem("cd_user") || "{}");
-          if (!user.email) { location.href = "login.html"; return; }
-          const priceText = document.getElementById("price")?.textContent || "$0";
-          const amount = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
-          const product = document.querySelector(".order-item strong")?.textContent || "Mod";
-          payWithPaystack(user.email, amount, product);
-        };
       }
     });
+
+    init();
   </script>
+  <script src="theme.js"></script>
+  <script src="account.js"></script>
 </body>
 </html>

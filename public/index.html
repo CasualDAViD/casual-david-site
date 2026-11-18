@@ -108,12 +108,13 @@
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
+  <script src="api.js"></script>
   <script src="theme.js"></script>
   <script src="account.js"></script>
   <script>
-    (function() {
+    (async function() {
       try {
-        const s = JSON.parse(localStorage.getItem('cd_socials') || '{}');
+        const s = await api('/api/socials');
         const card = document.getElementById('community-card');
         if (card && s.discord) card.href = s.discord;
         if (s.youtube) document.getElementById('yt-btn').href = s.youtube;

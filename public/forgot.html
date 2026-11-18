@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forgot password • Casual_DAViD</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .login-card { background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.6); border-radius: 20px; padding: 2.5rem; max-width: 400px; width: 100%; box-shadow: 0 12px 40px rgb(0 0 0 / 0.1); }
+    [data-theme="dark"] .login-card { background: rgba(30,41,59,0.9); border-color: rgba(255,255,255,0.1); }
+    .login-card h1 { font-family: var(--heading); font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .login-card p.sub { color: var(--text-muted); margin-bottom: 1.5rem; }
+    .oauth-btn { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500; margin-bottom: 0.75rem; text-decoration: none; color: var(--text); box-sizing: border-box; }
+    [data-theme="dark"] .oauth-btn { background: #1e293b; }
+    .oauth-btn:hover { background: #f8fafc; }
+    [data-theme="dark"] .oauth-btn:hover { background: #334155; }
+    .divider { text-align: center; color: var(--text-muted); margin: 1.25rem 0; font-size: 0.85rem; }
+    .login-card input { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 0.75rem; background: white; font-size: 0.95rem; box-sizing: border-box; }
+    [data-theme="dark"] .login-card input { background: #0f172a; color: white; border-color: #334155; }
+    .login-card input:focus { outline: none; border-color: #3b82f6; }
+    .login-card .btn { width: 100%; justify-content: center; margin-top: 0.5rem; }
+    .create-link { display: block; text-align: center; margin-top: 1.25rem; color: var(--primary); text-decoration: none; font-size: 0.9rem; }
+    .form-msg { font-size: 0.9rem; margin: 0.25rem 0 0.5rem; min-height: 1.2em; }
+    .form-msg.error { color: #dc2626; }
+    .form-msg.ok { color: #16a34a; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <h1>Forgot password</h1>
+      <p class="sub">We will email you a link to choose a new one.</p>
+      <form id="form">
+        <input type="email" id="email" placeholder="Email" autocomplete="email" required>
+        <div id="msg" class="form-msg" role="alert"></div>
+        <button type="submit" id="submit" class="btn btn-primary">Send reset link</button>
+      </form>
+      <a href="login.html" class="create-link">Back to sign in</a>
+    </div>
+  </div>
+  <script src="api.js"></script>
+  <script>
+
+    function setMsg(text, ok) {
+      const el = document.getElementById('msg');
+      el.textContent = text || '';
+      el.className = 'form-msg ' + (ok ? 'ok' : 'error');
+    }
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit');
+      btn.disabled = true;
+      setMsg('');
+      try {
+        const r = await api('/api/auth/forgot-password', { method: 'POST', json: { email: document.getElementById('email').value } });
+        setMsg(r.message, true);
+      } catch (err) {
+        setMsg(err.message);
+        btn.disabled = false;
+      }
+    });
+  </script>
+  <script src="theme.js"></script>
+</body>
+</html>

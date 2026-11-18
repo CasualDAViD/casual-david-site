@@ -1,0 +1,24 @@
+# Install: sudo cp deploy/casual-david.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable --now casual-david
+[Unit]
+Description=Casual_DAViD website
+After=network.target
+
+[Service]
+Type=simple
+User=casualdavid
+WorkingDirectory=/opt/casual-david-site
+EnvironmentFile=/opt/casual-david-site/.env
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=3
+
+# Hardening: the app may only write to its data folder.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/casual-david
+
+[Install]
+WantedBy=multi-user.target
