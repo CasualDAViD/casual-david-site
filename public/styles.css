@@ -14,6 +14,30 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* Show/hide control for password fields. */
+.pw-field { position: relative; }
+.pw-field > input { padding-right: 2.75rem; }
+.pw-toggle {
+  position: absolute;
+  top: 0;
+  right: 0.2rem;
+  bottom: 0;
+  width: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 8px;
+}
+.pw-toggle:hover { color: var(--text); }
+.pw-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.pw-toggle svg { width: 22px; height: 22px; display: block; }
+.pw-toggle svg[hidden] { display: none; }
+
 body {
   font-family: var(--font);
   background: var(--bg);
