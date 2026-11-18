@@ -1,6 +1,6 @@
 // Shows or hides a password field.
-// Open eye  = password is hidden (click to show).
-// Slashed eye = password is visible (click to hide).
+// Slashed eye = password is hidden (click to show).
+// Open eye    = password is visible (click to hide).
 (function () {
   function sync(btn, input) {
     var visible = input.type === 'text';
