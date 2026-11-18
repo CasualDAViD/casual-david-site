@@ -22,6 +22,8 @@
     [data-theme="dark"] .login-card input { background: #0f172a; color: white; border-color: #334155; }
     .login-card input:focus { outline: none; border-color: #3b82f6; }
     .login-card .btn { width: 100%; justify-content: center; margin-top: 0.5rem; }
+    .login-card .pw-field { margin-bottom: 0.75rem; }
+    .login-card .pw-field input { margin-bottom: 0; padding-right: 2.75rem; }
     .create-link { display: block; text-align: center; margin-top: 1.25rem; color: var(--primary); text-decoration: none; font-size: 0.9rem; }
     .form-msg { font-size: 0.9rem; margin: 0.25rem 0 0.5rem; min-height: 1.2em; }
     .form-msg.error { color: #dc2626; }
@@ -43,7 +45,13 @@
 
       <form id="form">
         <input type="email" id="email" placeholder="Email" autocomplete="email" required>
-        <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+        <div class="pw-field">
+          <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false">
+            <svg class="pw-eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+            <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/><path d="M5 19L19 5"/></svg>
+          </button>
+        </div>
         <div id="msg" class="form-msg" role="alert"></div>
         <button type="submit" id="submit" class="btn btn-primary">Sign in</button>
       </form>
@@ -109,5 +117,6 @@
     });
   </script>
   <script src="theme.js"></script>
+  <script src="password-toggle.js"></script>
 </body>
 </html>
