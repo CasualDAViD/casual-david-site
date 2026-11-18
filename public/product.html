@@ -92,64 +92,62 @@
     </div>
   </footer>
 
-  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script src="api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
-    const id = params.get('id');
-    const mods = JSON.parse(localStorage.getItem('cd_mods') || '[]');
-    const mod = mods.find(m => m.id === id);
     let images = [];
     let currentIndex = 0;
 
-    const RATES = { USD: 1, NGN: 1550, EUR: 0.92 };
-    const currency = localStorage.getItem('cd_currency') || 'USD';
-
-    function formatPrice(usd) {
-      const amount = usd * RATES[currency];
-      if (currency === 'NGN') return '₦' + Math.round(amount).toLocaleString();
-      if (currency === 'EUR') return '€' + amount.toFixed(2);
-      return '$' + amount.toFixed(2);
-    }
-
-    if (!mod) {
-      document.getElementById('product-content').innerHTML = '<p>Mod not found.</p>';
-    } else {
+    async function loadProduct() {
+      const box = document.getElementById('product-content');
+      let mod;
+      try {
+        await getConfig();
+        mod = (await api('/api/mods/' + encodeURIComponent(params.get('id') || ''))).mod;
+      } catch (err) {
+        box.innerHTML = '<p>' + (err.status === 404 ? 'Mod not found.' : escapeHtml(err.message)) + '</p>';
+        return;
+      }
+      const currency = getCurrency();
       images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
-      document.title = mod.name + ' • Casual_DAViD';
-      document.getElementById('product-content').innerHTML = `
+      document.title = mod.name + ' \u2022 Casual_DAViD';
+      box.innerHTML = `
         <div class="product-layout">
           <div class="gallery">
             <div class="gallery-main" id="main-img" onclick="openLightbox(currentIndex)">
-              ${images[0] ? `<img src="${images[0]}" alt="">` : '<span style="font-size:3rem;">📦</span>'}
-              <button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">←</button>
-              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">→</button>
+              ${images[0] ? `<img src="${escapeHtml(images[0])}" alt="">` : '<span style="font-size:3rem;">\u{1F4E6}</span>'}
+              ${images.length > 1 ? `<button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">\u2190</button>
+              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">\u2192</button>` : ''}
             </div>
             <div class="gallery-thumbs" id="thumbs">
-              ${images.map((src, i) => `<img src="${src}" class="${i===0?'active':''}" onclick="goTo(${i})">`).join('')}
+              ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" onclick="goTo(${i})" alt="">`).join('')}
             </div>
           </div>
           <div class="product-info">
-            <h1>${mod.name}</h1>
-            <span class="mod-cat">${mod.category || 'Mod'}</span>
-            <div class="product-price">${formatPrice(mod.price)}</div>
+            <h1>${escapeHtml(mod.name)}</h1>
+            <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
+            <div class="product-price">${formatPrice(mod.price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
-            <button class="buy-now" onclick="if(!localStorage.getItem('cd_user')){location.href='login.html';return;}location.href='checkout.html?id=${mod.id}'">Buy now</button>
+            ${mod.available
+              ? `<button class="buy-now" id="buy-now">Buy now</button>`
+              : `<button class="buy-now" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>`}
             <div class="desc">
               <h3 style="margin-bottom:0.5rem; color:#0f172a;">Description</h3>
-              <p>${mod.description}</p>
+              <p style="white-space:pre-line;">${escapeHtml(mod.description)}</p>
             </div>
           </div>
         </div>
       `;
+      const buy = document.getElementById('buy-now');
+      if (buy) buy.addEventListener('click', () => { location.href = 'checkout.html?id=' + encodeURIComponent(mod.id); });
     }
 
     function updateGallery() {
       const main = document.getElementById('main-img');
-      if (images[currentIndex]) {
-        main.querySelector('img').src = images[currentIndex];
-      }
-      document.querySelectorAll('#thumbs img').forEach((img, i) => {
-        img.classList.toggle('active', i === currentIndex);
+      const img = main && main.querySelector('img');
+      if (images[currentIndex] && img) img.src = images[currentIndex];
+      document.querySelectorAll('#thumbs img').forEach((el, i) => {
+        el.classList.toggle('active', i === currentIndex);
       });
     }
 
@@ -158,6 +156,7 @@
     function prevImg() { currentIndex = (currentIndex - 1 + images.length) % images.length; updateGallery(); }
 
     function openLightbox(i) {
+      if (!images[i]) return;
       currentIndex = i;
       document.getElementById('lb-img').src = images[currentIndex];
       document.getElementById('lightbox').classList.add('open');
@@ -166,21 +165,7 @@
     function lbNext() { currentIndex = (currentIndex + 1) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
     function lbPrev() { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
 
-    function buyNow() {
-      const email = prompt('Enter your email for the download link:');
-      if (!email || !email.includes('@')) return alert('Enter a valid email.');
-      const publicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-      if (publicKey.includes('xxxxxxxx')) return alert('Paystack key not configured.');
-      const amount = Math.round(mod.price * RATES[currency] * 100);
-      const handler = PaystackPop.setup({
-        key: publicKey, email, amount, currency,
-        ref: 'CD-' + mod.id + '-' + Date.now(),
-        metadata: { custom_fields: [{ display_name: 'Mod', variable_name: 'mod', value: mod.name }] },
-        callback: r => alert('Payment successful! Reference: ' + r.reference),
-        onClose: () => {}
-      });
-      handler.openIframe();
-    }
+    loadProduct();
 
     // Theme
     const themes = ['system', 'light', 'dark'];

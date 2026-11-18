@@ -1,0 +1,26 @@
+{
+  "name": "casual-david-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Casual_DAViD website and store backend",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "create-admin": "node scripts/create-admin.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "better-sqlite3": "^13.2.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.4",
+    "helmet": "^8.3.0",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.6.0"
+  }
+}

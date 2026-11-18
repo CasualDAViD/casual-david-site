@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Admin • Casual_DAViD</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .admin-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 4px 20px rgb(0 0 0 / 0.04); }
+    .card h2 { margin-bottom: 1rem; font-size: 1.35rem; }
+    label { display: block; font-weight: 500; margin: 0.75rem 0 0.3rem; font-size: 0.9rem; }
+    input, textarea, select { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+    textarea { min-height: 80px; resize: vertical; }
+    .btn { background: #2563eb; color: white; border: none; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 0.75rem; }
+    .btn:hover { background: #1d4ed8; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-plain { background: #f1f5f9; color: #0f172a; }
+    .btn-plain:hover { background: #e2e8f0; }
+    .mod-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .mod-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap; }
+    .preview-img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: #f1f5f9; }
+    .login-box { max-width: 420px; margin: 6rem auto; }
+    .error { color: #dc2626; font-size: 0.9rem; margin-top: 0.5rem; }
+    .success { color: #16a34a; font-size: 0.9rem; margin-top: 0.5rem; }
+    .muted { color: #64748b; font-size: 0.85rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tabs button { background: #f1f5f9; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
+    .tabs button.active { background: #2563eb; color: white; }
+    .hidden { display: none; }
+    .shot { position: relative; display: inline-block; margin: 0.25rem; }
+    .shot button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: none; background: #dc2626; color: white; cursor: pointer; line-height: 1; }
+    .progress { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; margin-top: 0.75rem; }
+    .progress > div { height: 100%; width: 0; background: #2563eb; transition: width 0.15s; }
+    table.orders { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    table.orders th, table.orders td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
+    .pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+    .pill.paid { background: #dcfce7; color: #166534; }
+    .pill.pending { background: #fef9c3; color: #854d0e; }
+    .pill.failed { background: #fee2e2; color: #991b1b; }
+    .table-scroll { overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div id="loading-view" class="admin-wrap login-box"><p class="muted">Loading…</p></div>
+
+  <div id="login-view" class="admin-wrap login-box hidden">
+    <div class="card">
+      <h2>Admin Login</h2>
+      <form id="login-form">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" placeholder="Email" autocomplete="username" required>
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
+        <button class="btn" type="submit" id="login-btn">Login</button>
+        <div id="login-msg" class="error" role="alert"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboard" class="admin-wrap hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:0.5rem; flex-wrap:wrap;">
+      <h1 style="font-size:1.5rem;">Casual_DAViD Admin</h1>
+      <div>
+        <a href="index.html" class="btn btn-plain" style="text-decoration:none; display:inline-block;">View site</a>
+        <button class="btn btn-danger" id="logout-btn">Logout</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button data-tab="mods" class="active">Mods</button>
+      <button data-tab="orders">Orders</button>
+      <button data-tab="socials">Social Links</button>
+      <button data-tab="account">Account</button>
+    </div>
+
+    <div id="tab-mods">
+      <div class="card">
+        <h2 id="form-title">Add Mod</h2>
+        <input type="hidden" id="edit-id">
+        <label for="mod-name">Mod Name</label>
+        <input type="text" id="mod-name" placeholder="e.g. Casual QoL Pack" maxlength="120">
+        <label for="mod-desc">Description</label>
+        <textarea id="mod-desc" placeholder="What does this mod do?" maxlength="5000"></textarea>
+        <label for="mod-category">Category</label>
+        <select id="mod-category">
+          <option value="Mod">Mod</option>
+          <option value="Plugin">Plugin</option>
+        </select>
+        <label for="mod-price">Price (USD)</label>
+        <input type="number" id="mod-price" placeholder="5.00" step="0.01" min="0.01">
+
+        <label for="mod-file">Mod file (what buyers download)</label>
+        <input type="file" id="mod-file" accept=".jar,.zip,.mrpack,.mcpack,.mcaddon,.7z,.rar">
+        <div id="file-info" class="muted" style="margin-top:0.3rem;">Allowed: .jar, .zip, .mrpack, .mcpack, .mcaddon, .7z, .rar. Only people who have paid can download it. Until a file is uploaded, the mod shows as "Coming soon".</div>
+
+        <label for="mod-icon">Icon (upload image)</label>
+        <input type="file" id="mod-icon" accept="image/png,image/jpeg,image/gif,image/webp">
+        <div id="icon-preview"></div>
+        <label for="mod-screens">Screenshots (optional, multiple)</label>
+        <input type="file" id="mod-screens" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+        <div id="screens-preview"></div>
+
+        <div class="progress hidden" id="progress"><div id="progress-bar"></div></div>
+        <button class="btn" id="save-mod-btn">Save Mod</button>
+        <button class="btn btn-plain hidden" id="cancel-edit-btn">Cancel editing</button>
+        <div id="mod-msg" class="success" role="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>Listed Mods</h2>
+        <div id="admin-mod-list" class="mod-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-orders" class="hidden">
+      <div class="card">
+        <h2>Recent Orders</h2>
+        <div class="table-scroll" id="orders-box"></div>
+      </div>
+    </div>
+
+    <div id="tab-socials" class="hidden">
+      <div class="card">
+        <h2>Social Links</h2>
+        <label>YouTube URL</label>
+        <input type="url" id="yt-url" placeholder="https://youtube.com/@...">
+        <label>YouTube Handle (display)</label>
+        <input type="text" id="yt-handle" placeholder="@Casual_DAViD">
+        <label>TikTok URL</label>
+        <input type="url" id="tt-url" placeholder="https://tiktok.com/@...">
+        <label>TikTok Handle</label>
+        <input type="text" id="tt-handle" placeholder="@casual_david">
+        <label>Discord Invite URL</label>
+        <input type="url" id="dc-url" placeholder="https://discord.gg/...">
+        <label>Modrinth Profile URL</label>
+        <input type="url" id="mr-url" placeholder="https://modrinth.com/user/...">
+        <label>CurseForge Profile URL</label>
+        <input type="url" id="cf-url" placeholder="https://www.curseforge.com/members/...">
+        <label>Personal Discord URL</label>
+        <input type="url" id="pd-url" placeholder="https://discord.com/users/...">
+        <label>Email</label>
+        <input type="email" id="em-url" placeholder="you@email.com">
+        <label>Donate / Support URL</label>
+        <input type="url" id="dn-url" placeholder="https://ko-fi.com/... or PayPal">
+        <button class="btn" id="save-socials-btn">Save Socials</button>
+        <div id="social-msg" class="success" role="status"></div>
+      </div>
+    </div>
+
+    <div id="tab-account" class="hidden">
+      <div class="card">
+        <h2>Change Password</h2>
+        <label for="current-password">Current password</label>
+        <input type="password" id="current-password" autocomplete="current-password">
+        <label for="new-password">New password (8+ characters)</label>
+        <input type="password" id="new-password" autocomplete="new-password">
+        <label for="confirm-password">Confirm new password</label>
+        <input type="password" id="confirm-password" autocomplete="new-password">
+        <button class="btn" id="change-pw-btn">Update Password</button>
+        <div id="pw-msg" class="error" role="alert"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

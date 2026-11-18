@@ -84,12 +84,14 @@
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
-<script src="theme.js"></script>
+<script src="api.js"></script>
+  <script src="theme.js"></script>
 <script>
-  const s = JSON.parse(localStorage.getItem('cd_socials') || '{}');
-  if (s.personalDiscord) document.getElementById('personal-discord').href = s.personalDiscord;
-  if (s.email) document.getElementById('email-btn').href = 'mailto:' + s.email;
-  if (s.donate) document.getElementById('donate-btn').href = s.donate;
+  api('/api/socials').then(function (s) {
+    if (s.personalDiscord) document.getElementById('personal-discord').href = s.personalDiscord;
+    if (s.email) document.getElementById('email-btn').href = 'mailto:' + s.email;
+    if (s.donate) document.getElementById('donate-btn').href = s.donate;
+  }).catch(function () {});
 </script>
 <script src="account.js"></script>
 </body>
