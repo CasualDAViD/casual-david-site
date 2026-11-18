@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin • Casual_DAViD</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .admin-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    .card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 4px 20px rgb(0 0 0 / 0.04); }
+    .card h2 { margin-bottom: 1rem; font-size: 1.35rem; }
+    label { display: block; font-weight: 500; margin: 0.75rem 0 0.3rem; font-size: 0.9rem; }
+    input, textarea, select { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+    textarea { min-height: 80px; resize: vertical; }
+    .btn { background: #2563eb; color: white; border: none; padding: 0.7rem 1.2rem; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 0.75rem; }
+    .btn:hover { background: #1d4ed8; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .mod-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .mod-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .preview-img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: #f1f5f9; }
+    .login-box { max-width: 420px; margin: 6rem auto; }
+    .error { color: #dc2626; font-size: 0.9rem; margin-top: 0.5rem; }
+    .success { color: #16a34a; font-size: 0.9rem; margin-top: 0.5rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tabs button { background: #f1f5f9; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; font-weight: 500; }
+    .tabs button.active { background: #2563eb; color: white; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="login-view" class="admin-wrap login-box">
+    <div class="card">
+      <h2>Admin Login</h2>
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="Email">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="Password">
+      <button class="btn" onclick="login()">Login</button>
+      <div id="login-msg" class="error"></div>
+    </div>
+  </div>
+
+  <div id="change-pw-view" class="admin-wrap login-box hidden">
+    <div class="card">
+      <h2>Change Temporary Password</h2>
+      <p style="color:#64748b; margin-bottom:1rem;">You logged in with the temporary password. Please set a new one.</p>
+      <label>New Password</label>
+      <input type="password" id="new-password">
+      <label>Confirm Password</label>
+      <input type="password" id="confirm-password">
+      <button class="btn" onclick="changePassword()">Update Password</button>
+      <div id="pw-msg" class="error"></div>
+    </div>
+  </div>
+
+  <div id="dashboard" class="admin-wrap hidden">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+      <h1 style="font-size:1.5rem;">Casual_DAViD Admin</h1>
+      <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </div>
+
+    <div class="tabs">
+      <button class="active" onclick="showTab('mods')">Mods</button>
+      <button onclick="showTab('socials')">Social Links</button>
+    </div>
+
+    <div id="tab-mods">
+      <div class="card">
+        <h2>Add / Edit Mod</h2>
+        <input type="hidden" id="edit-id">
+        <label>Mod Name</label>
+        <input type="text" id="mod-name" placeholder="e.g. Casual QoL Pack">
+        <label>Description</label>
+        <textarea id="mod-desc" placeholder="What does this mod do?"></textarea>
+        <label>Category</label>
+        <select id="mod-category">
+          <option value="Mod">Mod</option>
+          <option value="Plugin">Plugin</option>
+        </select>
+        <label>Price (USD)</label>
+        <input type="number" id="mod-price" placeholder="5.00" step="0.01">
+        <label>Icon (upload image)</label>
+        <input type="file" id="mod-icon" accept="image/*">
+        <div id="icon-preview"></div>
+        <label>Screenshots (optional, multiple)</label>
+        <input type="file" id="mod-screens" accept="image/*" multiple>
+        <button class="btn" onclick="saveMod()">Save Mod</button>
+        <div id="mod-msg" class="success"></div>
+      </div>
+
+      <div class="card">
+        <h2>Listed Mods</h2>
+        <div id="admin-mod-list" class="mod-list"></div>
+      </div>
+    </div>
+
+    <div id="tab-socials" class="hidden">
+      <div class="card">
+        <h2>Social Links</h2>
+        <label>YouTube URL</label>
+        <input type="url" id="yt-url" placeholder="https://youtube.com/@...">
+        <label>YouTube Handle (display)</label>
+        <input type="text" id="yt-handle" placeholder="@Casual_DAViD">
+        <label>TikTok URL</label>
+        <input type="url" id="tt-url" placeholder="https://tiktok.com/@...">
+        <label>TikTok Handle</label>
+        <input type="text" id="tt-handle" placeholder="@casual_david">
+        <label>Discord Invite URL</label>
+        <input type="url" id="dc-url" placeholder="https://discord.gg/...">
+        <label>Modrinth Profile URL</label>
+        <input type="url" id="mr-url" placeholder="https://modrinth.com/user/...">
+        <label>CurseForge Profile URL</label>
+        <input type="url" id="cf-url" placeholder="https://www.curseforge.com/members/...">
+        <label>Personal Discord URL</label>
+        <input type="url" id="pd-url" placeholder="https://discord.com/users/...">
+        <label>Email</label>
+        <input type="email" id="em-url" placeholder="you@email.com">
+        <label>Donate / Support URL</label>
+        <input type="url" id="dn-url" placeholder="https://ko-fi.com/... or PayPal">
+        <button class="btn" onclick="saveSocials()">Save Socials</button>
+        <div id="social-msg" class="success"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

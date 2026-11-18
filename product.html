@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mod • Casual_DAViD</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    .product-page { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.4rem; color: #2563eb; text-decoration: none; font-weight: 500; margin-bottom: 1rem; }
+    .product-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; }
+    .gallery { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.25rem; position: relative; }
+    .gallery-main { width: 100%; aspect-ratio: 1; background: #f1f5f9; border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.75rem; position: relative; cursor: zoom-in; }
+    .gallery-main img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; z-index: 2; }
+    .gallery-nav.prev { left: 0.5rem; }
+    .gallery-nav.next { right: 0.5rem; }
+    .gallery-thumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .gallery-thumbs img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
+    .gallery-thumbs img.active { border-color: #2563eb; }
+    .product-info { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.5rem; }
+    .product-info h1 { font-family: var(--heading); font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .product-price { font-size: 2rem; font-weight: 700; color: var(--primary); margin: 1rem 0; }
+    .delivery { display: flex; justify-content: space-between; padding: 0.75rem 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin: 1rem 0; font-size: 0.95rem; }
+    .buy-now { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 0.5rem; }
+    .buy-now:hover { background: #1d4ed8; }
+    .desc { margin-top: 1.5rem; color: #475569; line-height: 1.6; }
+    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .lightbox.open { display: flex; }
+    .lightbox-inner { position: relative; max-width: 90vw; max-height: 85vh; }
+    .lightbox-inner img { max-width: 100%; max-height: 85vh; object-fit: contain; border-radius: 12px; }
+    .lb-close { position: absolute; top: -40px; right: 0; background: white; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; }
+    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; background: white; border: none; cursor: pointer; font-size: 1.2rem; }
+    .lb-nav.prev { left: -50px; }
+    .lb-nav.next { right: -50px; }
+    @media (max-width: 768px) { .product-layout { grid-template-columns: 1fr; } .lb-nav.prev { left: 10px; } .lb-nav.next { right: 10px; } }
+  </style>
+</head>
+<body>
+  <header class="header"><div class="header-inner">
+      <a href="index.html" class="logo">
+        <img src="avatar.png" alt="Casual_DAViD" class="logo-img">
+        <div class="logo-text">
+          <span class="name">Casual_DAViD</span>
+          <span class="tag">Quality of Life Mods & Plugins</span>
+        </div>
+      </a>
+      <nav class="nav-pill">
+        <a href="content.html">Content</a>
+        <a href="mods.html" class="active">Mods</a>
+        <a href="about.html">About</a>
+      </nav>
+      <button class="hamburger" onclick="toggleMenu()" aria-label="Menu" style="background:none;border:none;cursor:pointer;padding:0.4rem;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="6" width="18" height="2" rx="1"/><rect x="3" y="11" width="18" height="2" rx="1"/><rect x="3" y="16" width="18" height="2" rx="1"/></svg>
+  </button>
+      <div class="header-right" style="display:flex; align-items:center; gap:0.5rem;">
+        <button id="theme-btn" onclick="cycleTheme()" style="background:none; border:1px solid #e2e8f0; border-radius:999px; padding:0.35rem 0.7rem; cursor:pointer; font-size:0.85rem;">🌙</button>
+        <button id="account-btn" onclick="openLogin()" style="background:none;border:1px solid #e2e8f0;border-radius:999px;padding:0.35rem 0.7rem;cursor:pointer;font-size:0.85rem;">Sign in</button>
+        <a href="mods.html" class="btn-sm">Shop</a>
+      </div>
+    </div>
+  </header>
+  <div class="menu-overlay" id="overlay" onclick="toggleMenu()"></div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="content.html">Content</a>
+    <a href="mods.html">Mods</a>
+    <a href="about.html">About</a>
+    <a href="mods.html">Shop</a>
+  </div>
+
+
+  <div class="product-page">
+    <a href="mods.html" class="back-link" style="display:inline-flex; align-items:center; gap:0.4rem; color:#2563eb; text-decoration:none; font-weight:600; font-size:1rem; margin-bottom:1rem; padding:0.4rem 0;">← Back to mods</a>
+    <div id="product-content"></div>
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <div class="lightbox-inner">
+      <button class="lb-close" onclick="closeLightbox()">✕</button>
+      <button class="lb-nav prev" onclick="lbPrev()">←</button>
+      <img id="lb-img" src="" alt="">
+      <button class="lb-nav next" onclick="lbNext()">→</button>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>© 2026 Casual_DAViD </p>
+      <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
+    </div>
+  </footer>
+
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const mods = JSON.parse(localStorage.getItem('cd_mods') || '[]');
+    const mod = mods.find(m => m.id === id);
+    let images = [];
+    let currentIndex = 0;
+
+    const RATES = { USD: 1, NGN: 1550, EUR: 0.92 };
+    const currency = localStorage.getItem('cd_currency') || 'USD';
+
+    function formatPrice(usd) {
+      const amount = usd * RATES[currency];
+      if (currency === 'NGN') return '₦' + Math.round(amount).toLocaleString();
+      if (currency === 'EUR') return '€' + amount.toFixed(2);
+      return '$' + amount.toFixed(2);
+    }
+
+    if (!mod) {
+      document.getElementById('product-content').innerHTML = '<p>Mod not found.</p>';
+    } else {
+      images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
+      document.title = mod.name + ' • Casual_DAViD';
+      document.getElementById('product-content').innerHTML = `
+        <div class="product-layout">
+          <div class="gallery">
+            <div class="gallery-main" id="main-img" onclick="openLightbox(currentIndex)">
+              ${images[0] ? `<img src="${images[0]}" alt="">` : '<span style="font-size:3rem;">📦</span>'}
+              <button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">←</button>
+              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">→</button>
+            </div>
+            <div class="gallery-thumbs" id="thumbs">
+              ${images.map((src, i) => `<img src="${src}" class="${i===0?'active':''}" onclick="goTo(${i})">`).join('')}
+            </div>
+          </div>
+          <div class="product-info">
+            <h1>${mod.name}</h1>
+            <span class="mod-cat">${mod.category || 'Mod'}</span>
+            <div class="product-price">${formatPrice(mod.price)}</div>
+            <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
+            <button class="buy-now" onclick="if(!localStorage.getItem('cd_user')){location.href='login.html';return;}location.href='checkout.html?id=${mod.id}'">Buy now</button>
+            <div class="desc">
+              <h3 style="margin-bottom:0.5rem; color:#0f172a;">Description</h3>
+              <p>${mod.description}</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateGallery() {
+      const main = document.getElementById('main-img');
+      if (images[currentIndex]) {
+        main.querySelector('img').src = images[currentIndex];
+      }
+      document.querySelectorAll('#thumbs img').forEach((img, i) => {
+        img.classList.toggle('active', i === currentIndex);
+      });
+    }
+
+    function goTo(i) { currentIndex = i; updateGallery(); }
+    function nextImg() { currentIndex = (currentIndex + 1) % images.length; updateGallery(); }
+    function prevImg() { currentIndex = (currentIndex - 1 + images.length) % images.length; updateGallery(); }
+
+    function openLightbox(i) {
+      currentIndex = i;
+      document.getElementById('lb-img').src = images[currentIndex];
+      document.getElementById('lightbox').classList.add('open');
+    }
+    function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+    function lbNext() { currentIndex = (currentIndex + 1) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
+    function lbPrev() { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
+
+    function buyNow() {
+      const email = prompt('Enter your email for the download link:');
+      if (!email || !email.includes('@')) return alert('Enter a valid email.');
+      const publicKey = 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
+      if (publicKey.includes('xxxxxxxx')) return alert('Paystack key not configured.');
+      const amount = Math.round(mod.price * RATES[currency] * 100);
+      const handler = PaystackPop.setup({
+        key: publicKey, email, amount, currency,
+        ref: 'CD-' + mod.id + '-' + Date.now(),
+        metadata: { custom_fields: [{ display_name: 'Mod', variable_name: 'mod', value: mod.name }] },
+        callback: r => alert('Payment successful! Reference: ' + r.reference),
+        onClose: () => {}
+      });
+      handler.openIframe();
+    }
+
+    // Theme
+    const themes = ['system', 'light', 'dark'];
+    let themeIdx = themes.indexOf(localStorage.getItem('cd_theme') || 'system');
+    function applyTheme() {
+      const t = themes[themeIdx];
+      localStorage.setItem('cd_theme', t);
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      else document.documentElement.removeAttribute('data-theme');
+      document.getElementById('theme-btn').textContent = t === 'dark' ? '☀️' : t === 'light' ? '🌙' : '💻';
+    }
+    function cycleTheme() { themeIdx = (themeIdx + 1) % 3; applyTheme(); }
+    applyTheme();
+  </script>
+<script src="theme.js"></script>
+<script src="account.js"></script>
+</body>
+</html>
