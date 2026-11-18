@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex">
   <title>Admin • Casual_DAViD</title>
   <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     .admin-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
     .card { background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: 0 4px 20px rgb(0 0 0 / 0.04); }
@@ -42,20 +43,137 @@
     .pill.pending { background: #fef9c3; color: #854d0e; }
     .pill.failed { background: #fee2e2; color: #991b1b; }
     .table-scroll { overflow-x: auto; }
+
+    /* Admin sign-in. Scoped so the dashboard keeps its own cards and buttons. */
+    .admin-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom));
+      overflow: auto;
+      background:
+        radial-gradient(ellipse 68% 48% at 50% 26%, rgba(16, 185, 129, 0.20), transparent 62%),
+        radial-gradient(ellipse 42% 28% at 50% 18%, rgba(52, 211, 153, 0.10), transparent 70%),
+        #07090c;
+      font-family: Inter, var(--font);
+    }
+    .admin-gate.hidden { display: none; }
+    .admin-gate-loading { color: #94a3b8; font-size: 0.95rem; }
+    .admin-login-stack {
+      width: min(100%, 380px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .admin-login-logo {
+      width: 92px;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+    }
+    .admin-login-title {
+      margin: 0.55rem 0 1.15rem;
+      color: #f8fafc;
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+    .admin-login-card {
+      width: 100%;
+      margin: 0;
+      padding: 1.25rem 1.2rem 1.15rem;
+      background: #0c1218;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 12px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .admin-login-card label {
+      display: block;
+      margin: 0.95rem 0 0.4rem;
+      color: #93a0ae;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .admin-login-card label:first-of-type { margin-top: 0; }
+    .admin-login-card input {
+      width: 100%;
+      height: 44px;
+      padding: 0 0.8rem;
+      border-radius: 7px;
+      border: 1px solid #1d4a3c;
+      background: #090e13;
+      color: #f8fafc;
+      font-size: 16px;
+      font-family: inherit;
+      box-shadow: none;
+    }
+    .admin-login-card input:focus {
+      outline: none;
+      border-color: #34d399;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+    }
+    .admin-login-card input:-webkit-autofill {
+      -webkit-text-fill-color: #f8fafc;
+      caret-color: #f8fafc;
+      box-shadow: 0 0 0 1000px #090e13 inset;
+    }
+    .admin-signin {
+      width: 100%;
+      margin-top: 1.15rem;
+      height: 46px;
+      border: none;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: linear-gradient(180deg, #3ee0a8 0%, #14c48a 100%);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .admin-signin:hover { filter: brightness(1.06); }
+    .admin-signin:active { filter: brightness(0.96); }
+    .admin-signin:disabled { opacity: 0.65; cursor: not-allowed; filter: none; }
+    .admin-signin svg { flex: none; }
+    #login-msg { min-height: 1.15em; margin-top: 0.7rem; text-align: center; font-size: 0.85rem; }
+    #login-msg.error { color: #f87171; }
+    #login-msg.success { color: #4ade80; }
+    @media (max-width: 480px) {
+      .admin-login-logo { width: 76px; }
+      .admin-login-title { font-size: 1.3rem; margin-bottom: 1rem; }
+      .admin-login-card { padding: 1.05rem 0.95rem 1rem; }
+    }
   </style>
 </head>
 <body>
-  <div id="loading-view" class="admin-wrap login-box"><p class="muted">Loading…</p></div>
+  <div id="loading-view" class="admin-gate"><p class="admin-gate-loading">Loading…</p></div>
 
-  <div id="login-view" class="admin-wrap login-box hidden">
-    <div class="card">
-      <h2>Admin Login</h2>
-      <form id="login-form">
+  <div id="login-view" class="admin-gate hidden">
+    <div class="admin-login-stack">
+      <img class="admin-login-logo" src="images/admin-logo.png" alt="" width="420" height="390">
+      <h1 class="admin-login-title">Admin</h1>
+      <form id="login-form" class="admin-login-card">
         <label for="login-email">Email</label>
-        <input type="email" id="login-email" placeholder="Email" autocomplete="username" required>
+        <input type="email" id="login-email" autocomplete="username" required>
         <label for="login-password">Password</label>
-        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
-        <button class="btn" type="submit" id="login-btn">Login</button>
+        <input type="password" id="login-password" autocomplete="current-password" required>
+        <button class="admin-signin" type="submit" id="login-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Sign in
+        </button>
         <div id="login-msg" class="error" role="alert"></div>
       </form>
     </div>
