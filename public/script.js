@@ -1,4 +1,4 @@
-// Public site: loads mods and social links from the server.
+// Public site: loads mods and social links from Firestore.
 
 let modsCache = [];
 let currentCurrency = 'USD';
@@ -25,7 +25,11 @@ function renderModsGrid() {
         <option value="EUR" ${currentCurrency==='EUR'?'selected':''}>EUR</option>
       </select>
     </div>
-  ` + modsCache.map(mod => `
+  ` + modsCache.map(mod => {
+    const versions = mod.versions || [];
+    const minPrice = versions.length ? Math.min(...versions.map(v => Number(v.price) || 0)) : (mod.price || 0);
+    const hasFile = versions.some(v => v.fileUrl) || mod.fileUrl;
+    return `
     <div class="mod-card" data-id="${escapeHtml(mod.id)}" style="cursor:pointer;">
       <div class="mod-header">
         <div class="mod-icon">
@@ -33,18 +37,18 @@ function renderModsGrid() {
         </div>
         <div class="mod-title">
           <strong>${escapeHtml(mod.name)}</strong>
-          <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
+          <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.category || 'Mod')}</span>
         </div>
       </div>
-      <p class="mod-desc">${escapeHtml(mod.description)}</p>
+      <p class="mod-desc">${escapeHtml(mod.summary || mod.description || '')}</p>
       <div class="mod-footer">
-        <div class="mod-price">${formatPrice(mod.price, currentCurrency)}</div>
-        ${mod.available
+        <div class="mod-price">${formatPrice(minPrice, currentCurrency)}${versions.length > 1 ? '+' : ''}</div>
+        ${hasFile
           ? `<button class="buy-btn" data-buy="${escapeHtml(mod.id)}">Buy</button>`
           : '<button class="buy-btn" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>'}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 
   document.getElementById('currency-select').addEventListener('change', (e) => changeCurrency(e.target.value));
   grid.querySelectorAll('.mod-card').forEach(card => {
@@ -63,8 +67,10 @@ async function renderMods() {
   if (!grid) return;
   grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#64748b;">Loading\u2026</p>';
   try {
-    const [, data] = await Promise.all([getConfig(), api('/api/mods')]);
-    modsCache = data.mods;
+    if (!window.firebaseMods) {
+      await new Promise(r => setTimeout(r, 300));
+    }
+    modsCache = await window.firebaseMods.list();
   } catch (err) {
     grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#dc2626;">${escapeHtml(err.message)}</p>`;
     return;
@@ -100,7 +106,7 @@ function renderSocials(s) {
       handle: s.tiktokHandle || '@casual_david',
       label: 'QUICK CLIPS',
       title: 'Fast mod finds and building ideas.',
-      desc: 'Quick mod spotlights, shader tests, and bite-sized clips for when you’re just scrolling.',
+      desc: 'Quick mod spotlights, shader tests, and bite-sized clips for when you\u2019re just scrolling.',
       url: s.tiktok || '#',
       icon: `<svg width="22" height="22" viewBox="0 0 24 24"><path fill="#000" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>`
     },
@@ -144,12 +150,12 @@ function renderSocials(s) {
           <strong>${p.name}</strong>
           <div class="sc-handle">${escapeHtml(p.handle)}</div>
         </div>
-        <span class="sc-arrow">↗</span>
+        <span class="sc-arrow">\u2197</span>
       </div>
       <div class="sc-label">${p.label}</div>
       <h3>${p.title}</h3>
       <p>${p.desc}</p>
-      <div class="sc-link">${p.key === 'discord' ? 'Join Discord' : 'Watch on ' + p.name} →</div>
+      <div class="sc-link">${p.key === 'discord' ? 'Join Discord' : 'Watch on ' + p.name} \u2192</div>
     </a>
   `).join('');
 }
@@ -158,7 +164,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderMods();
   if (document.getElementById('socials-cards')) {
     let socials = {};
-    try { socials = await api('/api/socials'); } catch (e) { /* show defaults */ }
+    try {
+      if (window.firebaseMods && window.firebaseMods.getSocials) {
+        socials = await window.firebaseMods.getSocials();
+      }
+    } catch (e) {}
     renderSocials(socials);
   }
 });
