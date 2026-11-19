@@ -6,7 +6,9 @@ const { bodyOf, safeFileName } = require('../validate');
 const { newOrderReference } = require('../models');
 const { receiptEmail } = require('../mailer');
 const { PaystackError } = require('../paystack');
-const { CLASSES, LICENSES, LINK_TYPES, LIMITS } = require('../catalog');
+const {
+  CLASSES, LICENSES, LINK_TYPES, LIMITS, ENVIRONMENTS, MODLOADERS, JAVA_VERSIONS, RELEASE_TYPES, GAME_VERSIONS, FILE_LIMITS
+} = require('../catalog');
 
 module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
   const router = express.Router();
@@ -19,7 +21,10 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
       payments: config.paystack.enabled,
       passwordReset: mailer.enabled,
       oauth: { google: config.oauth.google.enabled, discord: config.oauth.discord.enabled },
-      catalog: { classes: CLASSES, licenses: LICENSES, linkTypes: LINK_TYPES, limits: LIMITS }
+      catalog: {
+        classes: CLASSES, licenses: LICENSES, linkTypes: LINK_TYPES, limits: LIMITS,
+        files: { environments: ENVIRONMENTS, modloaders: MODLOADERS, javaVersions: JAVA_VERSIONS, releaseTypes: RELEASE_TYPES, gameVersions: GAME_VERSIONS, limits: FILE_LIMITS }
+      }
     });
   });
 
@@ -44,11 +49,12 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
     markFailed: db.prepare("UPDATE orders SET status = 'failed' WHERE id = ? AND status = 'pending'"),
     mine: db.prepare(`
       SELECT o.id, o.reference, o.amount_kobo, o.currency, o.paid_at, m.id AS mod_id, m.name, m.category,
-             m.icon_file, m.file_stored, m.file_name
+             m.icon_file
       FROM orders o JOIN mods m ON m.id = o.mod_id
       WHERE o.user_id = ? AND o.status = 'paid'
       ORDER BY o.paid_at DESC, o.id DESC`),
-    user: db.prepare('SELECT * FROM users WHERE id = ?')
+    user: db.prepare('SELECT * FROM users WHERE id = ?'),
+    countDownload: db.prepare('UPDATE mod_files SET downloads = downloads + 1 WHERE id = ?')
   };
 
   // Settles an order from a Paystack transaction. Safe to call any number of
@@ -145,7 +151,13 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
   });
 
   router.get('/orders', auth.requireAuth, (req, res) => {
-    const orders = q.mine.all(req.user.id).map((o) => ({
+    const orders = q.mine.all(req.user.id).map((o) => {
+      // Newest first; buyers see every published file of what they bought.
+      const files = models.listFiles(o.mod_id, { publishedOnly: true }).map((f) => ({
+        id: f.id, displayName: f.displayName, fileName: f.fileName, size: f.size, releaseType: f.releaseType,
+        gameVersions: f.gameVersions, modloaders: f.modloaders, environments: f.environments, createdAt: f.createdAt
+      }));
+      return {
       id: o.id,
       reference: o.reference,
       amountKobo: o.amount_kobo,
@@ -156,10 +168,12 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
         name: o.name,
         category: o.category,
         icon: o.icon_file ? `/uploads/${o.icon_file}` : null,
-        downloadable: Boolean(o.file_stored),
-        fileName: o.file_name
+        downloadable: files.length > 0,
+        fileName: files[0]?.fileName || null,
+        files
       }
-    }));
+    };
+    });
     res.json({ orders });
   });
 
@@ -189,19 +203,27 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
 
   // ---- downloads --------------------------------------------------------
 
-  router.get('/downloads/:modId', auth.requireAuth, (req, res) => {
+  // Without a file id: the newest published release. With one: that exact file.
+  function sendDownload(req, res) {
     const row = models.getModRow(req.params.modId);
-    const allowed = row && (req.user.role === 'admin' || q.owns.get(req.user.id, row.id));
+    const isAdmin = req.user.role === 'admin';
+    const allowed = row && (isAdmin || q.owns.get(req.user.id, row.id));
     if (!allowed) return res.status(403).json({ error: 'forbidden', message: 'Buy this mod to download it.' });
-    if (!row.file_stored) return res.status(404).json({ error: 'no_file', message: 'The file for this item is not available yet.' });
 
-    const ext = require('node:path').extname(row.file_stored);
-    const name = safeFileName(row.file_name, row.name, ext);
+    const file = req.params.fileId ? models.getFileRow(row.id, req.params.fileId) : models.bestFileRow(row.id);
+    if (!file || (file.status !== 'published' && !isAdmin)) {
+      return res.status(404).json({ error: 'no_file', message: 'The file for this item is not available yet.' });
+    }
+    const ext = require('node:path').extname(file.file_stored);
+    const name = safeFileName(file.file_name, row.name, ext);
     res.set('Cache-Control', 'private, no-store');
-    res.download(require('node:path').join(models.filesDir, row.file_stored), name, (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'no_file', message: 'The file could not be found.' });
+    res.download(require('node:path').join(models.filesDir, file.file_stored), name, (err) => {
+      if (err && !res.headersSent) return res.status(404).json({ error: 'no_file', message: 'The file could not be found.' });
+      if (!err && !isAdmin) q.countDownload.run(file.id);
     });
-  });
+  }
+  router.get('/downloads/:modId', auth.requireAuth, sendDownload);
+  router.get('/downloads/:modId/:fileId', auth.requireAuth, sendDownload);
 
   return router;
 };

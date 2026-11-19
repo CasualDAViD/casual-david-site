@@ -88,6 +88,16 @@
               ${new Date(o.paidAt * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
               \u2022 ${formatKobo(o.amountKobo)} \u2022 Ref ${escapeHtml(o.reference)}
             </div>
+            ${o.mod.files.length > 1 ? `
+            <details style="margin-top:0.5rem; font-size:0.88rem;">
+              <summary style="cursor:pointer;">All files (${o.mod.files.length})</summary>
+              <ul style="list-style:none; padding:0; margin:0.4rem 0 0;">
+                ${o.mod.files.map(f => `<li style="margin:0.3rem 0;">
+                  <a href="/api/downloads/${encodeURIComponent(o.mod.id)}/${f.id}">${escapeHtml(f.displayName)}</a>
+                  <span style="color:#64748b;"> \u2022 ${escapeHtml(f.releaseType)}${f.gameVersions.length ? ' \u2022 ' + f.gameVersions.map(escapeHtml).join(', ') : ''}${f.modloaders.length ? ' \u2022 ' + f.modloaders.map(escapeHtml).join(', ') : ''}</span>
+                </li>`).join('')}
+              </ul>
+            </details>` : ''}
           </div>
           ${o.mod.downloadable
             ? `<a class="buy-btn" style="text-decoration:none; display:inline-block;" href="/api/downloads/${encodeURIComponent(o.mod.id)}">Download</a>`

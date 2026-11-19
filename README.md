@@ -94,3 +94,7 @@ Put the client ID and secret in `.env` and restart. Only accounts whose email th
 ## Projects (admin → Mods → Create project)
 
 The admin's mod form is a CurseForge-style wizard: **General** (name, logo, summary, class, main and extra categories, unlisted, social links), **Description** (Markdown with toolbar and live preview; raw HTML is never rendered), **Pricing & Files** (price, mod file, gallery) and **License**. Classes, categories, licenses and link types live in `server/catalog.js`; edit that file to change the dropdowns. Existing mods are upgraded automatically on first start.
+
+### Files (releases)
+
+A project can have many files. After creating a project the admin opens its **Files** tab: **+ Add File** asks for the file, display name, environment, modloader, Java, Minecraft versions, release type (Release / Beta / Alpha), a Markdown changelog and related projects. Minecraft version and loader are filled in from the file name when they can be read (e.g. `mymod-1.5.1mc26.3-fabric.jar`). Files can be published immediately or saved as drafts. Buyers get every published file; the default download is the newest full release. The version, loader and Java choices live in `server/catalog.js` (add new Minecraft versions at the top of `GAME_VERSIONS`).

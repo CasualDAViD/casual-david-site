@@ -143,6 +143,8 @@
               <p style="margin:0 0 0.4rem;">License: ${mod.license && mod.license.url
                 ? `<a href="${escapeHtml(mod.license.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mod.license.name)}</a>`
                 : escapeHtml(mod.license ? mod.license.name : 'All Rights Reserved')}</p>
+              ${mod.compat && mod.compat.gameVersions.length ? `<p style="margin:0 0 0.4rem;">Minecraft: ${mod.compat.gameVersions.map(escapeHtml).join(', ')}</p>` : ''}
+              ${mod.compat && mod.compat.modloaders.length ? `<p style="margin:0 0 0.4rem;">Works with: ${mod.compat.modloaders.map(escapeHtml).join(', ')}${mod.compat.environments.length ? ' \u2022 ' + mod.compat.environments.map(escapeHtml).join(' + ') : ''}</p>` : ''}
               ${(mod.links || []).length ? `<p style="margin:0;">${mod.links.map(l => `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.type)}</a>`).join(' \u00b7 ')}</p>` : ''}
             </div>
           </div>

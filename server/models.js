@@ -31,6 +31,11 @@ function createModels(db, config) {
     mod: db.prepare('SELECT * FROM mods WHERE id = ?'),
     shots: db.prepare('SELECT * FROM mod_screenshots WHERE mod_id = ? ORDER BY position, id'),
     sales: db.prepare("SELECT COUNT(*) AS n FROM orders WHERE mod_id = ? AND status = 'paid'"),
+    files: db.prepare('SELECT * FROM mod_files WHERE mod_id = ? ORDER BY id DESC'),
+    publishedFiles: db.prepare("SELECT * FROM mod_files WHERE mod_id = ? AND status = 'published' ORDER BY id DESC"),
+    file: db.prepare('SELECT * FROM mod_files WHERE id = ? AND mod_id = ?'),
+    bestFile: db.prepare(`SELECT * FROM mod_files WHERE mod_id = ? AND status = 'published'
+                          ORDER BY (release_type = 'release') DESC, id DESC LIMIT 1`),
     setting: db.prepare('SELECT value FROM settings WHERE key = ?'),
     putSetting: db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
   };
@@ -45,6 +50,33 @@ function createModels(db, config) {
       return fallback;
     }
   }
+
+  function serializeFile(row) {
+    const deps = parseJson(row.dependencies, []).map((id) => {
+      const m = q.mod.get(id);
+      return { id, name: m && !m.deleted_at ? m.name : 'Removed project' };
+    });
+    return {
+      id: row.id,
+      modId: row.mod_id,
+      displayName: row.display_name,
+      fileName: row.file_name,
+      size: row.file_size,
+      releaseType: row.release_type,
+      status: row.status,
+      environments: parseJson(row.environments, []),
+      modloaders: parseJson(row.modloaders, []),
+      javaVersions: parseJson(row.java_versions, []),
+      gameVersions: parseJson(row.game_versions, []),
+      changelog: row.changelog,
+      dependencies: deps,
+      downloads: row.downloads,
+      createdAt: row.created_at
+    };
+  }
+
+  const listFiles = (modId, { publishedOnly = false } = {}) =>
+    (publishedOnly ? q.publishedFiles : q.files).all(modId).map(serializeFile);
 
   // `detail` adds the long description (the shop list does not need it).
   function serializeMod(row, { admin = false, detail = true } = {}) {
@@ -62,14 +94,17 @@ function createModels(db, config) {
       price: row.price_cents / 100,
       icon: imageUrl(row.icon_file),
       screenshots: screenshots.map((s) => imageUrl(s.file)),
-      available: Boolean(row.file_stored)
+      available: false
     };
+    const published = q.publishedFiles.all(row.id).map(serializeFile);
+    out.available = published.length > 0;
+    const union = (key) => [...new Set(published.flatMap((f) => f[key]))];
+    out.compat = { gameVersions: union('gameVersions'), modloaders: union('modloaders'), environments: union('environments') };
     if (detail || admin) out.description = row.description;
     if (admin) {
       out.unlisted = Boolean(row.unlisted);
       out.screenshotIds = screenshots.map((s) => s.id);
-      out.fileName = row.file_name;
-      out.fileSize = row.file_size;
+      out.fileCount = q.files.all(row.id).length;
       out.sales = q.sales.get(row.id).n;
     }
     return out;
@@ -123,6 +158,10 @@ function createModels(db, config) {
     getMod,
     getModRow,
     serializeMod,
+    serializeFile,
+    listFiles,
+    getFileRow: (modId, fileId) => q.file.get(Number(fileId), modId) || null,
+    bestFileRow: (modId) => q.bestFile.get(modId) || null,
     getSocials,
     saveSocials,
     removeImage: (name) => removeFile(uploadsDir, name),

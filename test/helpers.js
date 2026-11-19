@@ -192,15 +192,42 @@ function modForm({
   return fd;
 }
 
+// The form for "Upload New File". Lists are sent as JSON text, like the browser does.
+function fileForm({
+  file = { data: Buffer.from('JAR-CONTENT-123'), name: 'cool-mod-1.0.jar' }, displayName, releaseType, publish,
+  environments = ['Client'], modloaders = ['Fabric'], javaVersions, gameVersions = ['1.21.11'],
+  changelog, dependencies, extra = {}
+} = {}) {
+  const fd = new FormData();
+  if (file) fd.set('file', new Blob([file.data]), file.name || 'cool-mod-1.0.jar');
+  const set = (k, v) => { if (v !== undefined) fd.set(k, v); };
+  set('displayName', displayName);
+  set('releaseType', releaseType);
+  set('publish', publish);
+  set('environments', JSON.stringify(environments));
+  set('modloaders', JSON.stringify(modloaders));
+  if (javaVersions !== undefined) set('javaVersions', JSON.stringify(javaVersions));
+  set('gameVersions', JSON.stringify(gameVersions));
+  set('changelog', changelog);
+  if (dependencies !== undefined) set('dependencies', JSON.stringify(dependencies));
+  for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+  return fd;
+}
+
+async function addFile(admin, modId, opts) {
+  return admin.client.request('POST', `/api/admin/mods/${modId}/files`, { form: fileForm(opts) });
+}
+
 async function createMod(admin, opts = {}) {
   const withFile = opts.withFile !== false;
-  const fd = modForm({
-    icon: { data: PNG },
-    file: withFile ? { data: opts.fileData || Buffer.from('JAR-CONTENT-123') } : undefined,
-    ...opts.form
-  });
+  const fd = modForm({ icon: { data: PNG }, ...opts.form });
   const res = await admin.client.request('POST', '/api/admin/mods', { form: fd });
   if (res.status !== 201) throw new Error('create mod failed: ' + res.text);
+  if (withFile) {
+    const f = await addFile(admin, res.json.mod.id, { file: { data: opts.fileData || Buffer.from('JAR-CONTENT-123'), name: 'cool-mod-1.0.jar' } });
+    if (f.status !== 201) throw new Error('add file failed: ' + f.text);
+    return (await admin.client.get('/api/admin/mods')).json.mods.find((m) => m.id === res.json.mod.id);
+  }
   return res.json.mod;
 }
 
@@ -209,6 +236,6 @@ function webhookSignature(body) {
 }
 
 module.exports = {
-  startTestServer, Client, signUp, makeAdmin, createMod, modForm, uniqueEmail,
+  startTestServer, Client, signUp, makeAdmin, createMod, modForm, fileForm, addFile, uniqueEmail,
   webhookSignature, PNG, PAYSTACK_SECRET
 };

@@ -77,8 +77,8 @@
 .wz-toolbar button { background: none; border: 0; min-width: 34px; height: 34px; border-radius: 6px; cursor: pointer; font-size: 0.95rem; color: #334155; }
 .wz-toolbar button:hover { background: #e2e8f0; }
 .wz-toolbar .sep { width: 1px; background: #cbd5e1; margin: 4px 0.3rem; }
-#p-description { flex: 1; border: 0; border-radius: 0; resize: none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.55; padding: 0.8rem; min-height: 0; width: 100%; box-sizing: border-box; }
-#p-description:focus { outline: none; box-shadow: none; }
+#p-description, #ff-changelog { flex: 1; border: 0; border-radius: 0; resize: none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.55; padding: 0.8rem; min-height: 0; width: 100%; box-sizing: border-box; }
+#p-description:focus, #ff-changelog:focus { outline: none; box-shadow: none; }
 .wz-pane-title { padding: 0.4rem 0.8rem; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
 .wz-preview { padding: 0.9rem 1.1rem; overflow-y: auto; flex: 1; color: #0f172a; }
 .wz-preview .placeholder { color: #94a3b8; }
@@ -121,3 +121,36 @@
   .wz-link-row .lk-type { grid-column: 1 / -1; }
   .wz-panel { padding: 1rem; }
 }
+
+/* ---- files tab and upload form ---- */
+.wz-spacer { flex: 1; }
+.wz-crumbs { color: #64748b; font-size: 0.9rem; margin: 0 0 1rem 0.4rem; }
+.files-tools { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+.files-tools input[type="search"] { flex: 1 1 220px; max-width: 380px; }
+.files-tools select { width: auto; min-width: 140px; }
+.files-tools .wz-ghost { margin: 0; }
+.files-table-wrap { overflow-x: auto; }
+.files-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.files-table th { text-align: left; padding: 0.6rem 0.7rem; color: #64748b; font-weight: 600; font-size: 0.8rem; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+.files-table td { padding: 0.7rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.files-table tr.file-row { cursor: pointer; }
+.files-table tr.file-row:hover td { background: #f8fafc; }
+.files-table .caret { display: inline-block; transition: transform 0.15s; color: #94a3b8; }
+.files-table tr.open .caret { transform: rotate(90deg); }
+.rel-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; font-weight: 700; font-size: 0.8rem; color: white; }
+.rel-badge.release { background: #16a34a; } .rel-badge.beta { background: #0891b2; } .rel-badge.alpha { background: #dc2626; }
+.status-dot::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.45rem; background: #94a3b8; }
+.status-dot.published::before { background: #16a34a; }
+.vchip { display: inline-block; background: #f1f5f9; border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.8rem; margin: 0.1rem 0.2rem 0.1rem 0; }
+.file-detail td { background: #f8fafc; padding: 1rem 1.2rem; }
+.file-detail .fd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem 1.5rem; margin-bottom: 0.8rem; font-size: 0.88rem; }
+.file-detail .fd-grid b { display: block; color: #64748b; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.file-detail .fd-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.9rem; }
+.file-detail .fd-actions .btn, .file-detail .fd-actions a { margin-top: 0; padding: 0.4rem 0.8rem; font-size: 0.88rem; text-decoration: none; }
+.wz-multi .wz-chips { min-height: 0; margin-bottom: 0.4rem; }
+.wz-multi select { width: 100%; }
+#ff-file-btn.disabled { opacity: 0.5; pointer-events: none; }
+#ff-changelog { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.55; padding: 0.8rem; min-height: 200px; border: 0; border-radius: 0; resize: none; width: 100%; box-sizing: border-box; }
+#file-view .wz-editor-pane, #file-view .wz-preview-pane { min-height: 260px; }
+#file-view input[type="radio"] { width: auto; margin: 0.2rem 0 0; accent-color: #ea580c; }
+#file-view input[type="file"] { display: none; }

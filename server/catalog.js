@@ -60,6 +60,25 @@ const LIMITS = {
   links: 8
 };
 
+// Options for uploaded files (CurseForge-style "Upload New File").
+// To offer a new Minecraft version, add it to the top of GAME_VERSIONS.
+const ENVIRONMENTS = ['Client', 'Server'];
+const MODLOADERS = ['Fabric', 'Forge', 'NeoForge', 'Quilt', 'Bukkit', 'Spigot', 'Paper', 'Purpur', 'Folia'];
+const JAVA_VERSIONS = ['Java 25', 'Java 21', 'Java 17', 'Java 16', 'Java 8'];
+const RELEASE_TYPES = ['release', 'beta', 'alpha'];
+// 1.21.11 down to 1.21 (the first release of a series has no patch number).
+const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => (to - i === 0 ? prefix : `${prefix}.${to - i}`));
+const GAME_VERSIONS = [
+  '26.3', '26.2', '26.1.2', '26.1.1', '26.1',
+  ...range('1.21', 0, 11),
+  ...range('1.20', 0, 6),
+  ...range('1.19', 0, 4),
+  ...range('1.18', 0, 2),
+  '1.17.1', '1.17', '1.16.5', '1.16.4', '1.16.3', '1.16.2', '1.16.1', '1.16'
+];
+
+const FILE_LIMITS = { displayName: 128, changelog: 20000, dependencies: 20 };
+
 const DEFAULT_LICENSE = 'All Rights Reserved';
 
 const licenseByName = (name) => LICENSES.find((l) => l.name === name) || null;
@@ -68,4 +87,6 @@ const licenseByName = (name) => LICENSES.find((l) => l.name === name) || null;
 // cannot drop), so it is filled in from the class.
 const legacyCategory = (className) => (className === 'Plugins' ? 'Plugin' : 'Mod');
 
-module.exports = { CLASSES, LICENSES, LINK_TYPES, LIMITS, DEFAULT_LICENSE, licenseByName, legacyCategory };
+module.exports = {
+  ENVIRONMENTS, MODLOADERS, JAVA_VERSIONS, RELEASE_TYPES, GAME_VERSIONS, FILE_LIMITS,
+  CLASSES, LICENSES, LINK_TYPES, LIMITS, DEFAULT_LICENSE, licenseByName, legacyCategory };

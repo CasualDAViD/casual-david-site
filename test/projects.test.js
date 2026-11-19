@@ -2,10 +2,11 @@
 
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const Database = require('better-sqlite3');
-const { startTestServer, Client, signUp, makeAdmin, createMod, modForm, PNG } = require('./helpers');
+const { startTestServer, Client, signUp, makeAdmin, createMod, modForm, fileForm, addFile, PNG } = require('./helpers');
 const { migrate, MIGRATIONS } = require('../server/db');
-const { CLASSES, LICENSES, LINK_TYPES } = require('../server/catalog');
+const { CLASSES, LICENSES, LINK_TYPES, GAME_VERSIONS } = require('../server/catalog');
 
 describe('project details (CurseForge-style fields)', () => {
   let srv, admin;
@@ -27,7 +28,7 @@ describe('project details (CurseForge-style fields)', () => {
       extraCategories: ['Performance', 'Map and Information'],
       unlisted: false, license: 'MIT License',
       links: [{ type: 'Website', url: 'casualdavid.com.ng' }, { type: 'YouTube', url: 'https://www.youtube.com/@CasualDAViD' }],
-      price: '3.50', file: { data: Buffer.from('jar'), name: 'fi.jar' }
+      price: '3.50'
     });
     assert.equal(res.status, 201, res.text);
     const m = res.json.mod;
@@ -109,8 +110,9 @@ describe('project details (CurseForge-style fields)', () => {
   });
 
   test('unlisted projects are hidden from the shop but open by direct link, and can still be bought', async () => {
-    const m = (await post({ name: 'Secret Pack', unlisted: true, file: { data: Buffer.from('s') } })).json.mod;
+    const m = (await post({ name: 'Secret Pack', unlisted: true })).json.mod;
     assert.equal(m.unlisted, true);
+    assert.equal((await addFile(admin, m.id)).status, 201);
 
     const visitor = new Client(srv.url);
     assert.ok(!(await visitor.get('/api/mods')).json.mods.some((x) => x.id === m.id), 'not in the public list');
@@ -184,6 +186,129 @@ describe('project details (CurseForge-style fields)', () => {
     assert.deepEqual(Object.keys(cfg.catalog.classes), Object.keys(CLASSES));
     assert.deepEqual(cfg.catalog.licenses.map((l) => l.name), LICENSES.map((l) => l.name));
     assert.equal(cfg.catalog.limits.summary, 256);
+    assert.deepEqual(cfg.catalog.files.gameVersions, GAME_VERSIONS);
+    assert.ok(cfg.catalog.files.modloaders.includes('Fabric'));
+  });
+});
+
+describe('project files (releases)', () => {
+  let srv, admin, mod;
+  before(async () => {
+    srv = await startTestServer(); admin = await makeAdmin(srv);
+    mod = await createMod(admin, { withFile: false, form: { name: 'Flashback Inventories' } });
+  });
+  after(async () => { await srv.close(); });
+
+  const url = (suffix = '') => `/api/admin/mods/${mod.id}/files${suffix}`;
+
+  test('a file stores its versions, loaders, release type, changelog and related projects', async () => {
+    const other = await createMod(admin, { withFile: false, form: { name: 'Companion' } });
+    const res = await addFile(admin, mod.id, {
+      file: { data: Buffer.from('jar-1'), name: 'flashback-inventories-1.5.1mc26.3.jar' },
+      displayName: 'Flashback Inventories 1.5.1 (26.3)', releaseType: 'beta',
+      environments: ['Client', 'Server'], modloaders: ['Fabric', 'NeoForge'], javaVersions: ['Java 25'],
+      gameVersions: ['26.3', '1.21.11'], changelog: '- Fixed **crash**', dependencies: [other.id]
+    });
+    assert.equal(res.status, 201, res.text);
+    const f = res.json.file;
+    assert.equal(f.displayName, 'Flashback Inventories 1.5.1 (26.3)');
+    assert.equal(f.releaseType, 'beta');
+    assert.equal(f.status, 'published');
+    assert.deepEqual(f.environments, ['Client', 'Server']);
+    assert.deepEqual(f.modloaders, ['Fabric', 'NeoForge']);
+    assert.deepEqual(f.javaVersions, ['Java 25']);
+    assert.deepEqual(f.gameVersions, ['26.3', '1.21.11']);
+    assert.deepEqual(f.dependencies, [{ id: other.id, name: 'Companion' }]);
+    assert.equal(f.downloads, 0);
+    assert.equal(f.size, 5);
+  });
+
+  test('the display name defaults to the file name, and "publish manually" saves a draft', async () => {
+    const res = await addFile(admin, mod.id, { file: { data: Buffer.from('x'), name: 'my-file.jar' }, publish: 'manual' });
+    assert.equal(res.status, 201, res.text);
+    assert.equal(res.json.file.displayName, 'my-file');
+    assert.equal(res.json.file.status, 'draft');
+  });
+
+  test('uploads are validated with clear messages', async () => {
+    const cases = [
+      [{ file: null }, /choose a file/i],
+      [{ file: { data: Buffer.from('x'), name: 'a.exe' } }, /must be one of/i],
+      [{ gameVersions: [] }, /minecraft version/i],
+      [{ gameVersions: ['1.2.3'] }, /not a supported/i],
+      [{ environments: [] }, /environment/i],
+      [{ modloaders: ['Bogus'] }, /not a supported/i],
+      [{ releaseType: 'final' }, /release type/i],
+      [{ displayName: 'x'.repeat(129) }, /display name/i],
+      [{ dependencies: ['mod-nope'] }, /no longer exists/i],
+      [{ dependencies: [mod.id] }, /itself/i],
+      [{ changelog: 'x'.repeat(20001) }, /changelog/i],
+      [{ extra: { javaVersions: 'nope' } }, /could not be read/i]
+    ];
+    const before = fs.readdirSync(srv.models.filesDir).length;
+    for (const [opts, pattern] of cases) {
+      const res = await addFile(admin, mod.id, opts);
+      assert.equal(res.status, 400, JSON.stringify(opts).slice(0, 60));
+      assert.match(res.json.message, pattern);
+    }
+    assert.equal(fs.readdirSync(srv.models.filesDir).length, before, 'rejected uploads leave nothing behind');
+    assert.equal(fs.readdirSync(srv.models.tmpDir).length, 0);
+    assert.equal((await addFile(admin, 'mod-missing')).status, 404);
+  });
+
+  test('plugins and other non-mod classes do not need an environment or loader', async () => {
+    const target = await createMod(admin, { withFile: false, form: { name: 'Plug', className: 'Plugins', mainCategory: 'Economy' } });
+    const res = await addFile(admin, target.id, { environments: [], modloaders: [] });
+    assert.equal(res.status, 201, res.text);
+  });
+
+  test('metadata can be edited and a draft published; the file itself stays', async () => {
+    const m = await createMod(admin, { withFile: false, form: { name: 'Editing files' } });
+    const f = (await addFile(admin, m.id, { publish: 'manual' })).json.file;
+    const fd = new FormData();
+    fd.set('displayName', 'Renamed'); fd.set('status', 'published'); fd.set('changelog', 'New notes');
+    const res = await admin.client.request('PUT', `/api/admin/mods/${m.id}/files/${f.id}`, { form: fd });
+    assert.equal(res.status, 200, res.text);
+    assert.equal(res.json.file.displayName, 'Renamed');
+    assert.equal(res.json.file.status, 'published');
+    assert.deepEqual(res.json.file.gameVersions, f.gameVersions, 'untouched fields are kept');
+    const bad = new FormData(); bad.set('status', 'weird');
+    assert.equal((await admin.client.request('PUT', `/api/admin/mods/${m.id}/files/${f.id}`, { form: bad })).status, 400);
+    assert.equal((await admin.client.request('PUT', `/api/admin/mods/${m.id}/files/9999`, { form: fd })).status, 404);
+  });
+
+  test('draft files are not for sale or download; buyers get every published file; downloads are counted', async () => {
+    const m = await createMod(admin, { withFile: false, form: { name: 'Sold With Files' } });
+    const draft = (await addFile(admin, m.id, { publish: 'manual', file: { data: Buffer.from('draft'), name: 'draft.jar' } })).json.file;
+    assert.equal((await new Client(srv.url).get(`/api/mods/${m.id}`)).json.mod.available, false, 'draft only = coming soon');
+
+    const old = (await addFile(admin, m.id, { file: { data: Buffer.from('old'), name: 'old.jar' }, releaseType: 'release', gameVersions: ['1.21'] })).json.file;
+    const beta = (await addFile(admin, m.id, { file: { data: Buffer.from('beta'), name: 'beta.jar' }, releaseType: 'beta' })).json.file;
+    const pub = (await new Client(srv.url).get(`/api/mods/${m.id}`)).json.mod;
+    assert.equal(pub.available, true);
+    assert.deepEqual(pub.compat.gameVersions.sort(), ['1.21', '1.21.11'].sort());
+    assert.ok(!JSON.stringify(pub).includes('file_stored'));
+
+    const { client } = await signUp(srv);
+    const order = (await client.post('/api/orders', { modId: m.id })).json;
+    assert.equal((await client.get(`/api/orders/verify?reference=${order.reference}`)).json.status, 'paid');
+
+    const mine = (await client.get('/api/orders')).json.orders[0].mod;
+    assert.deepEqual(mine.files.map((f) => f.id).sort(), [old.id, beta.id].sort(), 'drafts are not listed for buyers');
+
+    const best = await client.get(`/api/downloads/${m.id}`);
+    assert.equal(best.text, 'old', 'the default download is the newest full release, not a beta');
+    assert.equal((await client.get(`/api/downloads/${m.id}/${beta.id}`)).text, 'beta');
+    assert.equal((await client.get(`/api/downloads/${m.id}/${draft.id}`)).status, 404, 'buyers cannot fetch a draft');
+    assert.equal((await admin.client.get(`/api/downloads/${m.id}/${draft.id}`)).text, 'draft', 'admin can test a draft');
+
+    const files = (await admin.client.get(`/api/admin/mods/${m.id}/files`)).json.files;
+    assert.equal(files.find((f) => f.id === old.id).downloads, 1);
+    assert.equal(files.find((f) => f.id === beta.id).downloads, 1);
+    assert.equal(files.find((f) => f.id === draft.id).downloads, 0, 'admin downloads are not counted');
+
+    const stranger = await signUp(srv);
+    assert.equal((await stranger.client.get(`/api/downloads/${m.id}/${old.id}`)).status, 403);
   });
 });
 
@@ -208,6 +333,7 @@ describe('upgrading an existing database', () => {
                             VALUES (?, ?, ?, ?, 500, 1, 1)`);
     ins.run('mod-a', 'Old Mod', 'First line.\r\nSecond line.', 'Mod');
     ins.run('mod-b', 'Old Plugin', 'Plugin text', 'Plugin');
+    db.prepare("UPDATE mods SET file_stored = 'abc.jar', file_name = 'old-mod.jar', file_size = 7 WHERE id = 'mod-a'").run();
 
     migrate(db);
 
@@ -221,6 +347,9 @@ describe('upgrading an existing database', () => {
     assert.equal(a.unlisted, 0);
     assert.equal(a.links, '[]');
     assert.equal(db.prepare('SELECT COUNT(*) n FROM mods').get().n, 2, 'no rows lost');
+    const files = db.prepare('SELECT * FROM mod_files').all();
+    assert.equal(files.length, 1, 'the single old file becomes the first release');
+    assert.deepEqual([files[0].mod_id, files[0].file_stored, files[0].display_name, files[0].status], ['mod-a', 'abc.jar', 'old-mod.jar', 'published']);
 
     // Running it again changes nothing.
     migrate(db);

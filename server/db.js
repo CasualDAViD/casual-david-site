@@ -97,6 +97,33 @@ const MIGRATIONS = [
   UPDATE mods SET
     class_name = CASE category WHEN 'Plugin' THEN 'Plugins' ELSE 'Mods' END,
     summary = substr(trim(replace(replace(description, char(13), ' '), char(10), ' ')), 1, 200);
+  `,
+  // 3: a project can have many uploaded files (releases). The single file that
+  // used to live on the mods row becomes the first release.
+  `
+  CREATE TABLE mod_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mod_id TEXT NOT NULL REFERENCES mods(id),
+    display_name TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+    file_stored TEXT NOT NULL,
+    file_size INTEGER NOT NULL DEFAULT 0,
+    release_type TEXT NOT NULL DEFAULT 'release' CHECK (release_type IN ('release', 'beta', 'alpha')),
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'draft')),
+    environments TEXT NOT NULL DEFAULT '[]',
+    modloaders TEXT NOT NULL DEFAULT '[]',
+    java_versions TEXT NOT NULL DEFAULT '[]',
+    game_versions TEXT NOT NULL DEFAULT '[]',
+    changelog TEXT NOT NULL DEFAULT '',
+    dependencies TEXT NOT NULL DEFAULT '[]',
+    downloads INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX idx_mod_files_mod ON mod_files (mod_id);
+
+  INSERT INTO mod_files (mod_id, display_name, file_name, file_stored, file_size, created_at)
+    SELECT id, COALESCE(file_name, 'file'), COALESCE(file_name, 'file'), file_stored, COALESCE(file_size, 0), updated_at
+    FROM mods WHERE file_stored IS NOT NULL;
   `
 ];
 

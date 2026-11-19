@@ -5,7 +5,7 @@ const path = require('node:path');
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  startTestServer, Client, signUp, makeAdmin, createMod, modForm, webhookSignature, PNG
+  startTestServer, Client, signUp, makeAdmin, createMod, modForm, addFile, webhookSignature, PNG
 } = require('./helpers');
 
 describe('admin: mods, uploads and socials', () => {
@@ -16,17 +16,20 @@ describe('admin: mods, uploads and socials', () => {
   test('admin can create a mod with an icon, screenshots and a downloadable file', async () => {
     const fd = modForm({
       name: 'Casual QoL Pack', description: 'Quality of life.', price: '4.99', className: 'Plugins', mainCategory: 'Economy',
-      icon: { data: PNG }, file: { data: Buffer.from('PK-fake-jar'), name: 'qol.jar' },
-      screenshots: [{ data: PNG }, { data: PNG }]
+      icon: { data: PNG }, screenshots: [{ data: PNG }, { data: PNG }]
     });
     const res = await admin.client.request('POST', '/api/admin/mods', { form: fd });
     assert.equal(res.status, 201, res.text);
-    const mod = res.json.mod;
+    assert.equal(res.json.mod.available, false, 'no file yet');
+    const up = await addFile(admin, res.json.mod.id, { file: { data: Buffer.from('PK-fake-jar'), name: 'qol.jar' } });
+    assert.equal(up.status, 201, up.text);
+    const mod = (await admin.client.get('/api/admin/mods')).json.mods.find((m) => m.id === res.json.mod.id);
     assert.equal(mod.price, 4.99);
     assert.equal(mod.class, 'Plugins');
     assert.equal(mod.mainCategory, 'Economy');
     assert.equal(mod.available, true);
-    assert.equal(mod.fileName, 'qol.jar');
+    assert.equal(mod.fileCount, 1);
+    assert.equal(up.json.file.fileName, 'qol.jar');
     assert.equal(mod.screenshots.length, 2);
     assert.match(mod.icon, /^\/uploads\/[0-9a-f]{32}\.png$/);
 
@@ -66,6 +69,7 @@ describe('admin: mods, uploads and socials', () => {
   });
 
   test('uploads are validated: fake images, wrong file types and bad prices are rejected and leave nothing behind', async () => {
+    const holder = await createMod(admin, { withFile: false, form: { name: 'Holder' } });
     const before = fs.readdirSync(srv.models.uploadsDir).length;
     const beforePrivate = fs.readdirSync(srv.models.filesDir).length;
 
@@ -74,8 +78,7 @@ describe('admin: mods, uploads and socials', () => {
     assert.equal(res.status, 400);
     assert.match(res.json.message, /PNG, JPG, GIF or WebP/);
 
-    const badFile = modForm({ icon: { data: PNG }, file: { data: Buffer.from('MZ...'), name: 'virus.exe' } });
-    res = await admin.client.request('POST', '/api/admin/mods', { form: badFile });
+    res = await addFile(admin, holder.id, { file: { data: Buffer.from('MZ...'), name: 'virus.exe' } });
     assert.equal(res.status, 400);
     assert.match(res.json.message, /Mod files must be one of/);
 
@@ -93,23 +96,21 @@ describe('admin: mods, uploads and socials', () => {
     assert.equal(fs.readdirSync(srv.models.tmpDir).length, 0, 'tmp folder is clean');
   });
 
-  test('editing keeps the old file unless a new one is uploaded, and replacing deletes the old file from disk', async () => {
+  test('editing a project keeps its files; a file can be deleted and is removed from disk', async () => {
     const mod = await createMod(admin, { form: { name: 'Editable' }, fileData: Buffer.from('v1') });
-    const oldStored = srv.db.prepare('SELECT file_stored FROM mods WHERE id = ?').get(mod.id).file_stored;
+    const row = srv.db.prepare('SELECT file_stored FROM mod_files WHERE mod_id = ?').get(mod.id);
 
     let res = await admin.client.request('PUT', `/api/admin/mods/${mod.id}`, { form: modForm({ name: 'Edited name', price: '9.50' }) });
     assert.equal(res.status, 200, res.text);
     assert.equal(res.json.mod.name, 'Edited name');
     assert.equal(res.json.mod.price, 9.5);
     assert.equal(res.json.mod.available, true);
-    assert.equal(srv.db.prepare('SELECT file_stored FROM mods WHERE id = ?').get(mod.id).file_stored, oldStored);
+    assert.equal(fs.readFileSync(path.join(srv.models.filesDir, row.file_stored), 'utf8'), 'v1');
 
-    res = await admin.client.request('PUT', `/api/admin/mods/${mod.id}`, { form: modForm({ file: { data: Buffer.from('v2'), name: 'v2.jar' } }) });
-    assert.equal(res.status, 200);
-    const newStored = srv.db.prepare('SELECT file_stored FROM mods WHERE id = ?').get(mod.id).file_stored;
-    assert.notEqual(newStored, oldStored);
-    assert.equal(fs.existsSync(path.join(srv.models.filesDir, oldStored)), false, 'old file removed');
-    assert.equal(fs.readFileSync(path.join(srv.models.filesDir, newStored), 'utf8'), 'v2');
+    const fileId = res.json.mod.fileCount && (await admin.client.get(`/api/admin/mods/${mod.id}/files`)).json.files[0].id;
+    assert.equal((await admin.client.delete(`/api/admin/mods/${mod.id}/files/${fileId}`)).status, 200);
+    assert.equal(fs.existsSync(path.join(srv.models.filesDir, row.file_stored)), false, 'file removed');
+    assert.equal((await admin.client.get('/api/admin/mods')).json.mods.find((m) => m.id === mod.id).available, false);
 
     assert.equal((await admin.client.request('PUT', '/api/admin/mods/mod-missing', { form: modForm() })).status, 404);
   });
@@ -142,8 +143,8 @@ describe('admin: mods, uploads and socials', () => {
     const small = await startTestServer({ overrides: { maxModFileMb: 1 } });
     try {
       const a = await makeAdmin(small);
-      const fd = modForm({ icon: { data: PNG }, file: { data: Buffer.alloc(2 * 1024 * 1024, 1), name: 'big.jar' } });
-      const res = await a.client.request('POST', '/api/admin/mods', { form: fd });
+      const m = await createMod(a, { withFile: false });
+      const res = await addFile(a, m.id, { file: { data: Buffer.alloc(2 * 1024 * 1024, 1), name: 'big.jar' } });
       assert.equal(res.status, 413);
       assert.match(res.json.message, /too large/);
       assert.equal(fs.readdirSync(small.models.tmpDir).length, 0);
