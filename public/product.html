@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mod • Casual_DAViD</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="markdown.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     .product-page { max-width: 1100px; margin: 2rem auto; padding: 0 1.5rem; }
@@ -93,6 +94,8 @@
   </footer>
 
   <script src="api.js"></script>
+  <script src="vendor/markdown-it.min.js"></script>
+  <script src="markdown.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     let images = [];
@@ -125,7 +128,7 @@
           </div>
           <div class="product-info">
             <h1>${escapeHtml(mod.name)}</h1>
-            <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
+            <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.class || 'Mod')}</span>
             <div class="product-price">${formatPrice(mod.price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
             ${mod.available
@@ -133,7 +136,14 @@
               : `<button class="buy-now" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>`}
             <div class="desc">
               <h3 style="margin-bottom:0.5rem; color:#0f172a;">Description</h3>
-              <p style="white-space:pre-line;">${escapeHtml(mod.description)}</p>
+              <div class="md">${renderMarkdown(mod.description)}</div>
+            </div>
+            <div class="desc" style="margin-top:1rem;">
+              <p style="margin:0 0 0.4rem;"><strong>${escapeHtml(mod.class)}</strong>${(mod.categories || []).map(c => ' \u2022 ' + escapeHtml(c)).join('')}</p>
+              <p style="margin:0 0 0.4rem;">License: ${mod.license && mod.license.url
+                ? `<a href="${escapeHtml(mod.license.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mod.license.name)}</a>`
+                : escapeHtml(mod.license ? mod.license.name : 'All Rights Reserved')}</p>
+              ${(mod.links || []).length ? `<p style="margin:0;">${mod.links.map(l => `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.type)}</a>`).join(' \u00b7 ')}</p>` : ''}
             </div>
           </div>
         </div>

@@ -82,6 +82,21 @@ const MIGRATIONS = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  `,
+  // 2: CurseForge-style project details. Columns are added (not rebuilt) so the
+  // tables that point at mods stay untouched. The old Mod/Plugin column stays too.
+  `
+  ALTER TABLE mods ADD COLUMN summary TEXT NOT NULL DEFAULT '';
+  ALTER TABLE mods ADD COLUMN class_name TEXT NOT NULL DEFAULT 'Mods';
+  ALTER TABLE mods ADD COLUMN main_category TEXT NOT NULL DEFAULT 'Miscellaneous';
+  ALTER TABLE mods ADD COLUMN extra_categories TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE mods ADD COLUMN unlisted INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE mods ADD COLUMN license TEXT NOT NULL DEFAULT 'All Rights Reserved';
+  ALTER TABLE mods ADD COLUMN links TEXT NOT NULL DEFAULT '[]';
+
+  UPDATE mods SET
+    class_name = CASE category WHEN 'Plugin' THEN 'Plugins' ELSE 'Mods' END,
+    summary = substr(trim(replace(replace(description, char(13), ' '), char(10), ' ')), 1, 200);
   `
 ];
 
@@ -107,4 +122,4 @@ function openDb(dataDir) {
   return db;
 }
 
-module.exports = { openDb };
+module.exports = { openDb, migrate, MIGRATIONS };

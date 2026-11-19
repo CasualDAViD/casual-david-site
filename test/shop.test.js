@@ -15,7 +15,7 @@ describe('admin: mods, uploads and socials', () => {
 
   test('admin can create a mod with an icon, screenshots and a downloadable file', async () => {
     const fd = modForm({
-      name: 'Casual QoL Pack', description: 'Quality of life.', price: '4.99', category: 'Plugin',
+      name: 'Casual QoL Pack', description: 'Quality of life.', price: '4.99', className: 'Plugins', mainCategory: 'Economy',
       icon: { data: PNG }, file: { data: Buffer.from('PK-fake-jar'), name: 'qol.jar' },
       screenshots: [{ data: PNG }, { data: PNG }]
     });
@@ -23,7 +23,8 @@ describe('admin: mods, uploads and socials', () => {
     assert.equal(res.status, 201, res.text);
     const mod = res.json.mod;
     assert.equal(mod.price, 4.99);
-    assert.equal(mod.category, 'Plugin');
+    assert.equal(mod.class, 'Plugins');
+    assert.equal(mod.mainCategory, 'Economy');
     assert.equal(mod.available, true);
     assert.equal(mod.fileName, 'qol.jar');
     assert.equal(mod.screenshots.length, 2);
@@ -84,7 +85,7 @@ describe('admin: mods, uploads and socials', () => {
     }
     res = await admin.client.request('POST', '/api/admin/mods', { form: modForm({ name: '   ', icon: { data: PNG } }) });
     assert.equal(res.status, 400);
-    res = await admin.client.request('POST', '/api/admin/mods', { form: modForm({ category: 'Hack', icon: { data: PNG } }) });
+    res = await admin.client.request('POST', '/api/admin/mods', { form: modForm({ className: 'Hack', icon: { data: PNG } }) });
     assert.equal(res.status, 400);
 
     assert.equal(fs.readdirSync(srv.models.uploadsDir).length, before, 'no stray images');

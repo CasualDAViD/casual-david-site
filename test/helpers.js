@@ -169,12 +169,22 @@ async function makeAdmin(srv, { email = uniqueEmail('admin'), password = 'adminp
 // 1x1 transparent PNG.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
-function modForm({ name = 'Cool Mod', description = 'Does cool things', price = '5.00', category = 'Mod', icon, file, screenshots = [], extra = {} } = {}) {
+function modForm({
+  name = 'Cool Mod', summary = 'Does cool things.', description = 'Does cool things, in detail.', price = '5.00',
+  className = 'Mods', mainCategory = 'Utility & QoL', extraCategories, links, unlisted, license,
+  icon, file, screenshots = [], extra = {}
+} = {}) {
   const fd = new FormData();
   fd.set('name', name);
+  fd.set('summary', summary);
   fd.set('description', description);
   fd.set('price', price);
-  fd.set('category', category);
+  fd.set('class', className);
+  fd.set('mainCategory', mainCategory);
+  if (extraCategories !== undefined) fd.set('extraCategories', JSON.stringify(extraCategories));
+  if (links !== undefined) fd.set('links', JSON.stringify(links));
+  if (unlisted !== undefined) fd.set('unlisted', String(unlisted));
+  if (license !== undefined) fd.set('license', license);
   for (const [k, v] of Object.entries(extra)) fd.set(k, v);
   if (icon) fd.set('icon', new Blob([icon.data], { type: 'image/png' }), icon.name || 'icon.png');
   if (file) fd.set('file', new Blob([file.data]), file.name || 'cool-mod.jar');

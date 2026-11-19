@@ -90,3 +90,7 @@ Put the client ID and secret in `.env` and restart. Only accounts whose email th
 ## Tests
 
 `npm test` runs the whole suite against a fake Paystack and a fake Google, so no real money or accounts are involved.
+
+## Projects (admin → Mods → Create project)
+
+The admin's mod form is a CurseForge-style wizard: **General** (name, logo, summary, class, main and extra categories, unlisted, social links), **Description** (Markdown with toolbar and live preview; raw HTML is never rendered), **Pricing & Files** (price, mod file, gallery) and **License**. Classes, categories, licenses and link types live in `server/catalog.js`; edit that file to change the dropdowns. Existing mods are upgraded automatically on first start.

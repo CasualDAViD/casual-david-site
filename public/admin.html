@@ -7,6 +7,8 @@
   <meta name="robots" content="noindex">
   <title>Admin • Casual_DAViD</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="markdown.css">
+  <link rel="stylesheet" href="admin-wizard.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
     .admin-wrap { max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
@@ -183,41 +185,188 @@
     </div>
 
     <div id="tab-mods">
-      <div class="card">
-        <h2 id="form-title">Add Mod</h2>
-        <input type="hidden" id="edit-id">
-        <label for="mod-name">Mod Name</label>
-        <input type="text" id="mod-name" placeholder="e.g. Casual QoL Pack" maxlength="120">
-        <label for="mod-desc">Description</label>
-        <textarea id="mod-desc" placeholder="What does this mod do?" maxlength="5000"></textarea>
-        <label for="mod-category">Category</label>
-        <select id="mod-category">
-          <option value="Mod">Mod</option>
-          <option value="Plugin">Plugin</option>
-        </select>
-        <label for="mod-price">Price (USD)</label>
-        <input type="number" id="mod-price" placeholder="5.00" step="0.01" min="0.01">
 
-        <label for="mod-file">Mod file (what buyers download)</label>
-        <input type="file" id="mod-file" accept=".jar,.zip,.mrpack,.mcpack,.mcaddon,.7z,.rar">
-        <div id="file-info" class="muted" style="margin-top:0.3rem;">Allowed: .jar, .zip, .mrpack, .mcpack, .mcaddon, .7z, .rar. Only people who have paid can download it. Until a file is uploaded, the mod shows as "Coming soon".</div>
-
-        <label for="mod-icon">Icon (upload image)</label>
-        <input type="file" id="mod-icon" accept="image/png,image/jpeg,image/gif,image/webp">
-        <div id="icon-preview"></div>
-        <label for="mod-screens">Screenshots (optional, multiple)</label>
-        <input type="file" id="mod-screens" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
-        <div id="screens-preview"></div>
-
-        <div class="progress hidden" id="progress"><div id="progress-bar"></div></div>
-        <button class="btn" id="save-mod-btn">Save Mod</button>
-        <button class="btn btn-plain hidden" id="cancel-edit-btn">Cancel editing</button>
-        <div id="mod-msg" class="success" role="status"></div>
+      <!-- Project list -->
+      <div id="projects-view">
+        <div class="card">
+          <div class="projects-head">
+            <h2>Projects</h2>
+            <button class="btn" id="create-project-btn" type="button">+ Create project</button>
+          </div>
+          <div id="admin-mod-list" class="mod-list"></div>
+          <div id="mod-msg" class="success" role="status"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>Listed Mods</h2>
-        <div id="admin-mod-list" class="mod-list"></div>
+      <!-- Create / edit project -->
+      <div id="wizard" class="hidden">
+        <div class="wz-header">
+          <button class="wz-back" id="wz-back" type="button" aria-label="Back to projects">&#8249;</button>
+          <h2 id="wz-title">Create Project</h2>
+        </div>
+
+        <div class="wz-steps" role="tablist" id="wz-steps">
+          <button type="button" role="tab" data-step="general" class="active">General</button>
+          <button type="button" role="tab" data-step="description">Description</button>
+          <button type="button" role="tab" data-step="files">Pricing &amp; Files</button>
+          <button type="button" role="tab" data-step="license">License</button>
+        </div>
+
+        <div class="wz-banner" id="wz-banner">
+          <span>A project only becomes buyable once it has a price and a mod file. Until then visitors see it as &ldquo;Coming soon&rdquo;. Mark it <b>Unlisted</b> to keep it out of the shop while you finish it.</span>
+          <button type="button" id="wz-banner-close" aria-label="Dismiss">&times;</button>
+        </div>
+
+        <!-- Step 1: General -->
+        <div class="wz-panel" id="step-general">
+          <div class="wz-field wz-medium">
+            <label class="wz-label" for="p-name">Project name<span class="req">*</span></label>
+            <p class="wz-hint">Avoid including the class or category in the name (like &ldquo;Mod&rdquo;, &ldquo;Plugin&rdquo; or &ldquo;Minecraft&rdquo;).</p>
+            <input type="text" id="p-name" maxlength="128" autocomplete="off">
+            <div class="wz-counter"><span id="p-name-count">0</span>/128</div>
+          </div>
+
+          <div class="wz-field">
+            <span class="wz-label">Logo<span class="req">*</span></span>
+            <div class="wz-logo">
+              <div class="wz-logo-box" id="p-logo-box">&#128230;</div>
+              <div>
+                <label class="wz-upload-btn" for="p-logo">&#8679; Upload image</label>
+                <input type="file" id="p-logo" accept="image/png,image/jpeg,image/gif,image/webp">
+                <p class="wz-hint" style="margin-top:0.5rem;">PNG, JPG, GIF or WebP, up to 5&nbsp;MB. Square works best.<br>Don&rsquo;t use a solid or gradient color, a game logo, or someone else&rsquo;s trademark.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="wz-field wz-medium">
+            <label class="wz-label" for="p-summary">Summary<span class="req">*</span></label>
+            <p class="wz-hint">A clear one-line sentence that captures what it does. It&rsquo;s shown on the shop card.</p>
+            <textarea id="p-summary" rows="2" maxlength="256" style="min-height:3.2rem;"></textarea>
+            <div class="wz-counter"><span id="p-summary-count">0</span>/256</div>
+          </div>
+
+          <hr class="wz-divider">
+
+          <div class="wz-field wz-narrow">
+            <label class="wz-label" for="p-class">Class<span class="req">*</span></label>
+            <p class="wz-hint">Which class does your project fit under?</p>
+            <select id="p-class"></select>
+          </div>
+
+          <div class="wz-row">
+            <div class="wz-field">
+              <label class="wz-label" for="p-main">Main category<span class="req">*</span></label>
+              <select id="p-main"></select>
+            </div>
+            <div class="wz-field">
+              <span class="wz-label">Additional categories</span>
+              <div class="wz-chips" id="p-extra-chips"></div>
+              <select id="p-extra-add" aria-label="Add an additional category"></select>
+            </div>
+          </div>
+
+          <hr class="wz-divider">
+
+          <label class="wz-check">
+            <input type="checkbox" id="p-unlisted">
+            <span><b>Unlisted project</b> &ndash; won&rsquo;t appear in the shop, but can be shared by direct link and bought. You can change this anytime.</span>
+          </label>
+
+          <div class="wz-field" style="margin-top:1.6rem;">
+            <span class="wz-label">Social links</span>
+            <p class="wz-hint">Optional links shown on this project&rsquo;s page.</p>
+            <div class="wz-links" id="p-links"></div>
+            <button type="button" class="wz-ghost" id="p-add-link">+ Add socials</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Description -->
+        <div class="wz-panel hidden" id="step-description">
+          <div class="wz-field">
+            <label class="wz-label" for="p-description">Description<span class="req">*</span></label>
+            <p class="wz-hint">Written in Markdown. Use the toolbar or type it yourself; the preview on the right shows exactly what buyers will see. HTML is not allowed.</p>
+            <div class="wz-editor">
+              <div class="wz-editor-pane">
+                <div class="wz-toolbar" id="p-toolbar">
+                  <button type="button" data-fmt="h" title="Heading"><b>H</b></button>
+                  <button type="button" data-fmt="bold" title="Bold"><b>B</b></button>
+                  <button type="button" data-fmt="italic" title="Italic"><i>I</i></button>
+                  <button type="button" data-fmt="strike" title="Strikethrough"><s>S</s></button>
+                  <span class="sep"></span>
+                  <button type="button" data-fmt="link" title="Link">&#128279;</button>
+                  <button type="button" data-fmt="code" title="Code">&lt;/&gt;</button>
+                  <button type="button" data-fmt="quote" title="Quote">&#10077;</button>
+                  <span class="sep"></span>
+                  <button type="button" data-fmt="ol" title="Numbered list">1.</button>
+                  <button type="button" data-fmt="ul" title="Bulleted list">&#8226;</button>
+                  <button type="button" data-fmt="hr" title="Divider">&#8212;</button>
+                </div>
+                <textarea id="p-description" spellcheck="true" maxlength="20000" placeholder="## Features&#10;- What it does&#10;&#10;## Requirements&#10;- Minecraft version, loader, other mods"></textarea>
+              </div>
+              <div class="wz-preview-pane">
+                <div class="wz-pane-title">Preview</div>
+                <div class="wz-preview md" id="p-preview"></div>
+              </div>
+            </div>
+            <div class="wz-counter"><span id="p-desc-count">0</span>/20000</div>
+          </div>
+        </div>
+
+        <!-- Step 3: Pricing & Files -->
+        <div class="wz-panel hidden" id="step-files">
+          <div class="wz-field">
+            <label class="wz-label" for="p-price">Price (USD)<span class="req">*</span></label>
+            <p class="wz-hint" id="p-price-hint">Buyers are charged in naira on Paystack.</p>
+            <div class="wz-price"><span>$</span><input type="number" id="p-price" step="0.01" min="0.01" placeholder="5.00"></div>
+          </div>
+
+          <hr class="wz-divider">
+
+          <div class="wz-field">
+            <span class="wz-label">Mod file</span>
+            <p class="wz-hint">The file buyers download after paying (.jar, .zip, .mrpack, .mcpack, .mcaddon, .7z or .rar). Only people who have paid can download it.</p>
+            <div class="wz-file-card">
+              <label class="wz-upload-btn" for="p-file">&#8679; Choose file</label>
+              <input type="file" id="p-file" accept=".jar,.zip,.mrpack,.mcpack,.mcaddon,.7z,.rar">
+              <div>
+                <div class="name" id="p-file-name">No file uploaded yet</div>
+                <div class="sub" id="p-file-sub">Without a file the project shows as &ldquo;Coming soon&rdquo;.</div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="wz-divider">
+
+          <div class="wz-field">
+            <span class="wz-label">Gallery</span>
+            <p class="wz-hint">Screenshots shown on the project page. Removing one only takes effect when you save.</p>
+            <div class="wz-gallery" id="p-gallery"></div>
+            <label class="wz-upload-btn" for="p-shots">&#8679; Add images</label>
+            <input type="file" id="p-shots" accept="image/png,image/jpeg,image/gif,image/webp" multiple>
+          </div>
+        </div>
+
+        <!-- Step 4: License -->
+        <div class="wz-panel hidden" id="step-license">
+          <div class="wz-field wz-narrow">
+            <label class="wz-label" for="p-license">Project license</label>
+            <p class="wz-hint">What others may do with your work. For something you sell, <b>All Rights Reserved</b> is the usual choice.</p>
+            <select id="p-license"></select>
+            <p style="margin-top:0.6rem;"><a id="p-license-link" href="#" target="_blank" rel="noopener noreferrer" class="hidden">View full license</a></p>
+          </div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div class="wz-bar">
+          <div class="wz-progress hidden" id="wz-progress"><div id="wz-progress-bar"></div></div>
+          <button type="button" class="btn-bar" id="wz-prev">Previous</button>
+          <button type="button" class="btn-bar text" id="wz-cancel">Cancel</button>
+          <span class="wz-spacer"></span>
+          <p class="wz-msg" id="wz-msg" role="status"></p>
+          <button type="button" class="btn-bar" id="wz-save">Save changes</button>
+          <button type="button" class="btn-go" id="wz-next">Next</button>
+          <button type="button" class="btn-go" id="wz-submit">Create</button>
+        </div>
       </div>
     </div>
 
@@ -272,6 +421,8 @@
   </div>
 
   <script src="api.js"></script>
+  <script src="vendor/markdown-it.min.js"></script>
+  <script src="markdown.js"></script>
   <script src="admin.js"></script>
   <script src="theme.js"></script>
   <script src="password-toggle.js"></script>

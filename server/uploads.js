@@ -36,7 +36,7 @@ function createUploader(config, models) {
       fileSize: config.maxModFileMb * 1024 * 1024,
       files: 12,
       fields: 20,
-      fieldSize: 20000
+      fieldSize: 200000
     }
   });
 

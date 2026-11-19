@@ -74,12 +74,28 @@ function showTab(tab) {
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-// ---- mods ----------------------------------------------------------------
+// ---- projects (list + create/edit wizard) --------------------------------
+
+const STEPS = ['general', 'description', 'files', 'license'];
+let catalog = null;
+let wz = null; // state of the project being created or edited
 
 function formatSize(bytes) {
   if (!bytes) return '';
   if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function loadCatalog() {
+  if (!catalog) catalog = (await getConfig()).catalog;
+  return catalog;
+}
+
+function showProjects() {
+  $('wizard').classList.add('hidden');
+  $('projects-view').classList.remove('hidden');
+  wz = null;
+  window.scrollTo(0, 0);
 }
 
 async function loadModsList() {
@@ -91,56 +107,259 @@ async function loadModsList() {
     return;
   }
   if (modsCache.length === 0) {
-    list.innerHTML = '<p class="muted">No mods yet. Add one above.</p>';
+    list.innerHTML = '<div class="empty-state"><p>No projects yet.</p></div>';
     return;
   }
   list.innerHTML = modsCache.map((m) => `
     <div class="mod-item">
-      <div style="display:flex; align-items:center; gap:0.75rem;">
+      <div class="mod-meta">
         ${m.icon ? `<img src="${escapeHtml(m.icon)}" class="preview-img" alt="">` : '<div class="preview-img"></div>'}
         <div>
           <strong>${escapeHtml(m.name)}</strong>
-          <div class="muted">$${Number(m.price).toFixed(2)} • ${m.sales} sold</div>
-          <div class="muted">${m.available
-            ? 'File: ' + escapeHtml(m.fileName || 'uploaded') + (m.fileSize ? ' (' + formatSize(m.fileSize) + ')' : '')
-            : '<span style="color:#b45309;">No file uploaded yet (shown as Coming soon)</span>'}</div>
+          ${m.unlisted ? '<span class="pill unlisted">Unlisted</span>' : ''}
+          ${m.available ? '' : '<span class="pill nofile">No file</span>'}
+          <div class="muted">${escapeHtml(m.class || '')} &bull; ${escapeHtml(m.mainCategory || '')} &bull; $${Number(m.price).toFixed(2)} &bull; ${m.sales} sold</div>
+          <div class="muted">${escapeHtml(m.summary || '')}</div>
         </div>
       </div>
-      <div>
-        <button class="btn" style="padding:0.4rem 0.7rem; margin-right:0.4rem;" data-edit="${escapeHtml(m.id)}">Edit</button>
-        <button class="btn btn-danger" style="padding:0.4rem 0.7rem;" data-delete="${escapeHtml(m.id)}">Delete</button>
+      <div class="mod-actions">
+        <button class="btn" data-edit="${escapeHtml(m.id)}">Edit</button>
+        <button class="btn btn-danger" data-delete="${escapeHtml(m.id)}">Delete</button>
       </div>
     </div>
   `).join('');
-  list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => editMod(b.dataset.edit)));
+  list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openWizard(b.dataset.edit)));
   list.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => deleteMod(b.dataset.delete)));
 }
 
-function previewFiles(input, target) {
-  target.innerHTML = '';
-  Array.from(input.files).forEach((file) => {
-    const img = document.createElement('img');
-    img.className = 'preview-img';
-    img.style.margin = '0.25rem';
-    img.src = URL.createObjectURL(file);
-    target.appendChild(img);
-  });
-}
-$('mod-icon').addEventListener('change', (e) => previewFiles(e.target, $('icon-preview')));
-$('mod-screens').addEventListener('change', (e) => previewFiles(e.target, $('screens-preview')));
+// ---- wizard ----------------------------------------------------------------
 
-function resetForm() {
-  ['mod-name', 'mod-desc', 'mod-price', 'edit-id'].forEach((id) => { $(id).value = ''; });
-  $('mod-category').value = 'Mod';
-  ['mod-icon', 'mod-screens', 'mod-file'].forEach((id) => { $(id).value = ''; });
-  $('icon-preview').innerHTML = '';
-  $('screens-preview').innerHTML = '';
-  $('form-title').textContent = 'Add Mod';
-  $('save-mod-btn').textContent = 'Save Mod';
-  $('cancel-edit-btn').classList.add('hidden');
-  $('file-info').textContent = 'Allowed: .jar, .zip, .mrpack, .mcpack, .mcaddon, .7z, .rar. Only people who have paid can download it. Until a file is uploaded, the mod shows as "Coming soon".';
+function fillSelect(sel, options, current) {
+  sel.innerHTML = options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+  if (current && options.includes(current)) sel.value = current;
 }
-$('cancel-edit-btn').addEventListener('click', () => { resetForm(); setMsg('mod-msg', ''); });
+
+async function openWizard(id) {
+  try { await loadCatalog(); } catch (err) { handleApiError(err, 'mod-msg'); return; }
+  const m = id ? modsCache.find((x) => x.id === id) : null;
+  if (id && !m) return;
+  const firstClass = Object.keys(catalog.classes)[0];
+
+  wz = {
+    id: m ? m.id : null,
+    step: 0,
+    logoFile: null,
+    logoUrl: m ? m.icon : null,
+    modFile: null,
+    existingFile: m && m.available ? { name: m.fileName, size: m.fileSize } : null,
+    newShots: [], // { file, url }
+    shots: m ? (m.screenshots || []).map((src, i) => ({ id: m.screenshotIds[i], src, removed: false })) : [],
+    extra: m ? [...(m.categories || [])] : [],
+    links: m ? (m.links || []).map((l) => ({ ...l })) : [],
+    busy: false
+  };
+  const cls = m && m.class ? m.class : firstClass;
+
+  $('wz-title').textContent = m ? 'Edit Project' : 'Create Project';
+  $('p-name').value = m ? m.name : '';
+  $('p-summary').value = m ? m.summary || '' : '';
+  $('p-description').value = m ? m.description || '' : '';
+  $('p-price').value = m ? Number(m.price).toFixed(2) : '';
+  $('p-unlisted').checked = !!(m && m.unlisted);
+  $('p-logo').value = '';
+  $('p-file').value = '';
+  $('p-shots').value = '';
+  fillSelect($('p-class'), Object.keys(catalog.classes), cls);
+  fillCategorySelects(m ? m.mainCategory : null);
+  fillSelect($('p-license'), catalog.licenses.map((l) => l.name), m && m.license ? m.license.name : 'All Rights Reserved');
+  document.querySelectorAll('#wizard .invalid').forEach((el) => el.classList.remove('invalid'));
+  $('wz-msg').textContent = '';
+  $('wz-progress').classList.add('hidden');
+  $('wz-banner').classList.toggle('hidden', !!m);
+  ['wz-save', 'wz-submit', 'wz-next', 'wz-prev'].forEach((bid) => { $(bid).disabled = false; });
+
+  renderLogo(); renderChips(); renderLinks(); renderFileCard(); renderGallery(); renderLicenseLink();
+  updateCounters(); updatePreview();
+  $('projects-view').classList.add('hidden');
+  $('wizard').classList.remove('hidden');
+  goStep(0);
+  window.scrollTo(0, 0);
+}
+
+function fillCategorySelects(mainCurrent) {
+  const cats = catalog.classes[$('p-class').value] || [];
+  fillSelect($('p-main'), cats, mainCurrent);
+  refreshExtraSelect();
+}
+
+function refreshExtraSelect() {
+  const cats = catalog.classes[$('p-class').value] || [];
+  const main = $('p-main').value;
+  wz.extra = wz.extra.filter((c) => cats.includes(c) && c !== main);
+  const room = wz.extra.length < catalog.limits.extraCategories;
+  const choices = cats.filter((c) => c !== main && !wz.extra.includes(c));
+  const sel = $('p-extra-add');
+  sel.innerHTML = `<option value="">${room ? 'Add a category…' : 'Limit reached'}</option>` +
+    choices.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  sel.disabled = !room || choices.length === 0;
+  renderChips();
+}
+
+function renderChips() {
+  const box = $('p-extra-chips');
+  box.innerHTML = wz.extra.map((c, i) =>
+    `<span class="wz-chip">${escapeHtml(c)}<button type="button" data-rm="${i}" aria-label="Remove ${escapeHtml(c)}">&times;</button></span>`).join('');
+  box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => {
+    wz.extra.splice(Number(b.dataset.rm), 1);
+    refreshExtraSelect();
+  }));
+}
+
+function renderLogo() {
+  const box = $('p-logo-box');
+  box.innerHTML = wz.logoUrl ? `<img src="${escapeHtml(wz.logoUrl)}" alt="Logo preview">` : '&#128230;';
+}
+
+function renderLinks() {
+  const box = $('p-links');
+  const types = catalog.linkTypes;
+  box.innerHTML = wz.links.map((l, i) => `
+    <div class="wz-link-row" data-i="${i}">
+      <select class="lk-type" aria-label="Link type">${types.map((t) => `<option${t === l.type ? ' selected' : ''}>${escapeHtml(t)}</option>`).join('')}</select>
+      <input type="text" class="lk-url" value="${escapeHtml(l.url || '')}" placeholder="https://" aria-label="Link address">
+      <button type="button" class="wz-icon-btn" aria-label="Remove link">&#128465;</button>
+    </div>`).join('');
+  box.querySelectorAll('.wz-link-row').forEach((row) => {
+    const i = Number(row.dataset.i);
+    row.querySelector('.lk-type').addEventListener('change', (e) => { wz.links[i].type = e.target.value; });
+    row.querySelector('.lk-url').addEventListener('input', (e) => { wz.links[i].url = e.target.value; e.target.classList.remove('invalid'); });
+    row.querySelector('button').addEventListener('click', () => { wz.links.splice(i, 1); renderLinks(); });
+  });
+  $('p-add-link').disabled = wz.links.length >= catalog.limits.links;
+}
+
+function renderFileCard() {
+  const f = wz.modFile ? { name: wz.modFile.name, size: wz.modFile.size, fresh: true } : wz.existingFile;
+  $('p-file-name').textContent = f ? (f.name || 'uploaded file') + (f.size ? ' (' + formatSize(f.size) + ')' : '') : 'No file uploaded yet';
+  $('p-file-sub').textContent = f
+    ? (f.fresh ? 'Will be uploaded when you save.' : 'Choose a new file only if you want to replace it.')
+    : 'Without a file the project shows as "Coming soon".';
+}
+
+function renderGallery() {
+  const g = $('p-gallery');
+  const old = wz.shots.map((s, i) => s.removed ? '' :
+    `<div class="wz-thumb"><img src="${escapeHtml(s.src)}" alt=""><button type="button" data-old="${i}" aria-label="Remove image">&times;</button></div>`).join('');
+  const fresh = wz.newShots.map((s, i) =>
+    `<div class="wz-thumb new"><img src="${escapeHtml(s.url)}" alt=""><button type="button" data-new="${i}" aria-label="Remove image">&times;</button></div>`).join('');
+  g.innerHTML = old + fresh;
+  g.querySelectorAll('[data-old]').forEach((b) => b.addEventListener('click', () => { wz.shots[Number(b.dataset.old)].removed = true; renderGallery(); }));
+  g.querySelectorAll('[data-new]').forEach((b) => b.addEventListener('click', () => {
+    const [s] = wz.newShots.splice(Number(b.dataset.new), 1);
+    URL.revokeObjectURL(s.url);
+    renderGallery();
+  }));
+}
+
+function renderLicenseLink() {
+  const l = catalog.licenses.find((x) => x.name === $('p-license').value);
+  const a = $('p-license-link');
+  a.classList.toggle('hidden', !l || !l.url);
+  if (l && l.url) a.href = l.url;
+}
+
+function updateCounters() {
+  $('p-name-count').textContent = $('p-name').value.length;
+  $('p-summary-count').textContent = $('p-summary').value.length;
+  $('p-desc-count').textContent = $('p-description').value.length;
+}
+
+let previewTimer = null;
+function updatePreview() {
+  const src = $('p-description').value;
+  $('p-preview').innerHTML = src.trim() ? renderMarkdown(src) : '<p class="placeholder">Nothing to preview yet.</p>';
+}
+
+// ---- steps and navigation ---------------------------------------------------
+
+function goStep(i) {
+  wz.step = i;
+  STEPS.forEach((s, n) => $('step-' + s).classList.toggle('hidden', n !== i));
+  document.querySelectorAll('#wz-steps button').forEach((b, n) => b.classList.toggle('active', n === i));
+  const editing = !!wz.id;
+  const last = i === STEPS.length - 1;
+  $('wz-prev').disabled = i === 0;
+  $('wz-next').classList.toggle('hidden', last);
+  $('wz-submit').classList.toggle('hidden', !last || editing);
+  $('wz-save').classList.toggle('hidden', !editing);
+  $('wz-submit').textContent = 'Create';
+  setWzMsg('');
+  window.scrollTo(0, 0);
+}
+
+function setWzMsg(text, ok) {
+  const el = $('wz-msg');
+  el.textContent = text || '';
+  el.className = 'wz-msg ' + (ok ? 'success' : 'error');
+}
+
+function flag(el, bad) { el.classList.toggle('invalid', !!bad); return !bad; }
+
+// Returns an error message (and marks the field) or '' when the step is fine.
+function validateStep(name) {
+  const lim = catalog.limits;
+  if (name === 'general') {
+    const nm = $('p-name').value.trim();
+    if (!flag($('p-name'), !nm || nm.length > lim.name)) return 'Enter a project name.';
+    if (!wz.logoFile && !wz.logoUrl) return 'Upload a logo for the project.';
+    const sm = $('p-summary').value.trim();
+    if (!flag($('p-summary'), !sm || sm.length > lim.summary)) return 'Enter a short summary.';
+    if (!$('p-main').value) return 'Choose a main category.';
+    for (const row of document.querySelectorAll('.wz-link-row')) {
+      const i = Number(row.dataset.i);
+      const url = (wz.links[i].url || '').trim();
+      if (url && !/^(https?:\/\/)?[^\s/$.?#][^\s]*\.[^\s]{2,}$/i.test(url)) {
+        flag(row.querySelector('.lk-url'), true);
+        return 'One of the social links is not a valid web address.';
+      }
+    }
+  }
+  if (name === 'description') {
+    const d = $('p-description').value.trim();
+    if (!flag($('p-description'), !d || d.length > lim.description)) return 'Write a description.';
+  }
+  if (name === 'files') {
+    const p = parseFloat($('p-price').value);
+    if (!flag($('p-price'), !(p > 0))) return 'Enter a price above $0.';
+  }
+  return '';
+}
+
+function tryNext() {
+  const err = validateStep(STEPS[wz.step]);
+  if (err) { setWzMsg(err); return; }
+  goStep(Math.min(wz.step + 1, STEPS.length - 1));
+}
+
+function buildFormData() {
+  const fd = new FormData();
+  fd.append('name', $('p-name').value.trim());
+  fd.append('summary', $('p-summary').value.trim());
+  fd.append('description', $('p-description').value.trim());
+  fd.append('class', $('p-class').value);
+  fd.append('mainCategory', $('p-main').value);
+  fd.append('extraCategories', JSON.stringify(wz.extra));
+  fd.append('unlisted', $('p-unlisted').checked ? 'true' : 'false');
+  fd.append('license', $('p-license').value);
+  fd.append('links', JSON.stringify(wz.links.filter((l) => (l.url || '').trim()).map((l) => ({ type: l.type, url: l.url.trim() }))));
+  fd.append('price', $('p-price').value);
+  if (wz.logoFile) fd.append('icon', wz.logoFile);
+  if (wz.modFile) fd.append('file', wz.modFile);
+  wz.newShots.forEach((s) => fd.append('screenshots', s.file));
+  const removed = wz.shots.filter((s) => s.removed).map((s) => s.id);
+  if (removed.length) fd.append('removeScreenshots', JSON.stringify(removed));
+  return fd;
+}
 
 // Sends the form with a progress bar (fetch cannot report upload progress).
 function sendForm(method, url, formData) {
@@ -149,12 +368,12 @@ function sendForm(method, url, formData) {
     xhr.open(method, url);
     xhr.responseType = 'json';
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) $('progress-bar').style.width = Math.round((e.loaded / e.total) * 100) + '%';
+      if (e.lengthComputable) $('wz-progress-bar').style.width = Math.round((e.loaded / e.total) * 100) + '%';
     };
     xhr.onload = () => {
       const data = xhr.response || {};
       if (xhr.status >= 200 && xhr.status < 300) return resolve(data);
-      const err = new Error(data.message || 'Could not save the mod.');
+      const err = new Error(data.message || 'Could not save the project.');
       err.status = xhr.status;
       reject(err);
     };
@@ -163,85 +382,139 @@ function sendForm(method, url, formData) {
   });
 }
 
-$('save-mod-btn').addEventListener('click', async () => {
-  const name = $('mod-name').value.trim();
-  const description = $('mod-desc').value.trim();
-  const price = $('mod-price').value;
-  const editId = $('edit-id').value;
-
-  if (!name || !description || !price) {
-    setMsg('mod-msg', 'Name, description, and price are required.');
-    return;
+async function saveProject() {
+  if (wz.busy) return;
+  for (let i = 0; i < STEPS.length; i++) {
+    const err = validateStep(STEPS[i]);
+    if (err) { goStep(i); setWzMsg(err); return; }
   }
-
-  const fd = new FormData();
-  fd.append('name', name);
-  fd.append('description', description);
-  fd.append('category', $('mod-category').value);
-  fd.append('price', price);
-  if ($('mod-icon').files[0]) fd.append('icon', $('mod-icon').files[0]);
-  Array.from($('mod-screens').files).forEach((f) => fd.append('screenshots', f));
-  if ($('mod-file').files[0]) fd.append('file', $('mod-file').files[0]);
-
-  const btn = $('save-mod-btn');
-  btn.disabled = true;
-  $('progress-bar').style.width = '0';
-  $('progress').classList.remove('hidden');
-  setMsg('mod-msg', 'Saving…', true);
+  const editing = !!wz.id;
+  wz.busy = true;
+  ['wz-save', 'wz-submit', 'wz-next', 'wz-prev'].forEach((id) => { $(id).disabled = true; });
+  $('wz-progress-bar').style.width = '0';
+  $('wz-progress').classList.remove('hidden');
+  setWzMsg('Saving…', true);
   try {
-    await sendForm(editId ? 'PUT' : 'POST', editId ? '/api/admin/mods/' + encodeURIComponent(editId) : '/api/admin/mods', fd);
-    setMsg('mod-msg', 'Mod saved!', true);
-    resetForm();
+    await sendForm(editing ? 'PUT' : 'POST', editing ? '/api/admin/mods/' + encodeURIComponent(wz.id) : '/api/admin/mods', buildFormData());
+    wz.newShots.forEach((s) => URL.revokeObjectURL(s.url));
+    showProjects();
+    setMsg('mod-msg', editing ? 'Project saved.' : 'Project created.', true);
     loadModsList();
   } catch (err) {
-    handleApiError(err, 'mod-msg');
+    if (err.status === 401 || err.status === 403) { handleApiError(err, 'mod-msg'); return; }
+    setWzMsg(err.message);
   } finally {
-    btn.disabled = false;
-    $('progress').classList.add('hidden');
+    if (wz) {
+      wz.busy = false;
+      ['wz-save', 'wz-submit', 'wz-next'].forEach((id) => { $(id).disabled = false; });
+      $('wz-prev').disabled = wz.step === 0;
+      $('wz-progress').classList.add('hidden');
+    }
   }
+}
+
+function leaveWizard() {
+  if (wz && wz.busy) return;
+  if (wz) wz.newShots.forEach((s) => URL.revokeObjectURL(s.url));
+  showProjects();
+}
+
+// ---- markdown toolbar --------------------------------------------------------
+
+function applyFormat(kind) {
+  const ta = $('p-description');
+  const { selectionStart: a, selectionEnd: b, value } = ta;
+  const sel = value.slice(a, b);
+  const wrap = (l, r, ph) => { const t = sel || ph; return { text: l + t + r, from: a + l.length, to: a + l.length + t.length }; };
+  const prefixLines = (fn, ph) => {
+    const lines = (sel || ph).split('\n').map(fn);
+    const text = lines.join('\n');
+    return { text, from: a, to: a + text.length };
+  };
+  let r;
+  switch (kind) {
+    case 'bold': r = wrap('**', '**', 'bold text'); break;
+    case 'italic': r = wrap('*', '*', 'italic text'); break;
+    case 'strike': r = wrap('~~', '~~', 'text'); break;
+    case 'code': r = sel.includes('\n') ? wrap('```\n', '\n```', 'code') : wrap('`', '`', 'code'); break;
+    case 'link': { const t = sel || 'link text'; r = { text: `[${t}](https://)`, from: a + t.length + 3, to: a + t.length + 11 }; break; }
+    case 'h': r = prefixLines((l) => '## ' + l.replace(/^#+\s*/, ''), 'Heading'); break;
+    case 'quote': r = prefixLines((l) => '> ' + l, 'Quote'); break;
+    case 'ul': r = prefixLines((l) => '- ' + l, 'List item'); break;
+    case 'ol': { let n = 0; r = prefixLines((l) => (++n) + '. ' + l, 'List item'); break; }
+    case 'hr': r = { text: (a && value[a - 1] !== '\n' ? '\n' : '') + '\n---\n', from: 0, to: 0 }; r.from = r.to = a + r.text.length; break;
+    default: return;
+  }
+  ta.focus();
+  ta.setRangeText(r.text, a, b, 'end');
+  ta.setSelectionRange(r.from, r.to);
+  ta.dispatchEvent(new Event('input'));
+}
+
+// ---- wiring ---------------------------------------------------------------------
+
+$('create-project-btn').addEventListener('click', () => { setMsg('mod-msg', ''); openWizard(null); });
+$('wz-back').addEventListener('click', leaveWizard);
+$('wz-cancel').addEventListener('click', leaveWizard);
+$('wz-prev').addEventListener('click', () => goStep(Math.max(0, wz.step - 1)));
+$('wz-next').addEventListener('click', tryNext);
+$('wz-submit').addEventListener('click', saveProject);
+$('wz-save').addEventListener('click', saveProject);
+$('wz-banner-close').addEventListener('click', () => $('wz-banner').classList.add('hidden'));
+document.querySelectorAll('#wz-steps button').forEach((b, i) => b.addEventListener('click', () => {
+  if (wz) goStep(i);
+}));
+
+$('p-name').addEventListener('input', () => { updateCounters(); $('p-name').classList.remove('invalid'); });
+$('p-summary').addEventListener('input', () => { updateCounters(); $('p-summary').classList.remove('invalid'); });
+$('p-price').addEventListener('input', () => $('p-price').classList.remove('invalid'));
+$('p-description').addEventListener('input', () => {
+  updateCounters();
+  $('p-description').classList.remove('invalid');
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 150);
+});
+$('p-toolbar').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-fmt]');
+  if (b) applyFormat(b.dataset.fmt);
 });
 
-function editMod(id) {
-  const m = modsCache.find((x) => x.id === id);
-  if (!m) return;
-  resetForm();
-  $('edit-id').value = m.id;
-  $('mod-name').value = m.name;
-  $('mod-desc').value = m.description;
-  $('mod-price').value = m.price;
-  $('mod-category').value = m.category || 'Mod';
-  $('form-title').textContent = 'Edit Mod';
-  $('save-mod-btn').textContent = 'Save Changes';
-  $('cancel-edit-btn').classList.remove('hidden');
-  $('file-info').textContent = m.available
-    ? 'Current file: ' + (m.fileName || 'uploaded') + (m.fileSize ? ' (' + formatSize(m.fileSize) + ')' : '') + '. Choose a new file only if you want to replace it.'
-    : 'No file uploaded yet. Choose one to make this mod available to buy.';
-  $('icon-preview').innerHTML = m.icon ? `<img src="${escapeHtml(m.icon)}" class="preview-img" style="margin-top:0.5rem;" alt=""> <span class="muted">Current icon. Choose a new image to replace it.</span>` : '';
+$('p-class').addEventListener('change', () => fillCategorySelects(null));
+$('p-main').addEventListener('change', refreshExtraSelect);
+$('p-extra-add').addEventListener('change', (e) => {
+  if (e.target.value && wz.extra.length < catalog.limits.extraCategories) wz.extra.push(e.target.value);
+  refreshExtraSelect();
+});
+$('p-add-link').addEventListener('click', () => {
+  const used = new Set(wz.links.map((l) => l.type));
+  wz.links.push({ type: catalog.linkTypes.find((t) => !used.has(t)) || catalog.linkTypes[0], url: '' });
+  renderLinks();
+});
+$('p-license').addEventListener('change', renderLicenseLink);
 
-  const shots = $('screens-preview');
-  shots.innerHTML = (m.screenshots || []).map((src, i) => `
-    <span class="shot"><img src="${escapeHtml(src)}" class="preview-img" alt="">
-      <button type="button" title="Remove screenshot" data-shot="${m.screenshotIds[i]}">×</button></span>`).join('');
-  shots.querySelectorAll('[data-shot]').forEach((b) => b.addEventListener('click', async () => {
-    if (!confirm('Remove this screenshot?')) return;
-    try {
-      await api('/api/admin/mods/' + encodeURIComponent(m.id) + '/screenshots/' + b.dataset.shot, { method: 'DELETE' });
-      b.parentElement.remove();
-      loadModsList();
-    } catch (err) {
-      handleApiError(err, 'mod-msg');
-    }
-  }));
-  showTab('mods');
-  window.scrollTo(0, 0);
-}
+$('p-logo').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (wz.logoFile && wz.logoUrl && wz.logoUrl.startsWith('blob:')) URL.revokeObjectURL(wz.logoUrl);
+  wz.logoFile = f;
+  wz.logoUrl = URL.createObjectURL(f);
+  renderLogo();
+});
+$('p-file').addEventListener('change', (e) => {
+  wz.modFile = e.target.files[0] || null;
+  renderFileCard();
+});
+$('p-shots').addEventListener('change', (e) => {
+  Array.from(e.target.files).forEach((f) => wz.newShots.push({ file: f, url: URL.createObjectURL(f) }));
+  e.target.value = '';
+  renderGallery();
+});
 
 async function deleteMod(id) {
   const m = modsCache.find((x) => x.id === id);
-  if (!confirm('Delete "' + (m ? m.name : 'this mod') + '"? It will disappear from the shop. People who already bought it keep their download.')) return;
+  if (!confirm('Delete "' + (m ? m.name : 'this project') + '"? It will disappear from the shop. People who already bought it keep their download.')) return;
   try {
     await api('/api/admin/mods/' + encodeURIComponent(id), { method: 'DELETE' });
-    if ($('edit-id').value === id) resetForm();
     loadModsList();
   } catch (err) {
     handleApiError(err, 'mod-msg');

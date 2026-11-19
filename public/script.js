@@ -33,10 +33,10 @@ function renderModsGrid() {
         </div>
         <div class="mod-title">
           <strong>${escapeHtml(mod.name)}</strong>
-          <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
+          <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.class || 'Mod')}</span>
         </div>
       </div>
-      <p class="mod-desc">${escapeHtml(mod.description)}</p>
+      <p class="mod-desc">${escapeHtml(mod.summary || '')}</p>
       <div class="mod-footer">
         <div class="mod-price">${formatPrice(mod.price, currentCurrency)}</div>
         ${mod.available

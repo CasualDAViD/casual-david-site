@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { licenseByName, DEFAULT_LICENSE } = require('./catalog');
 
 const SOCIAL_KEYS = [
   'youtube', 'youtubeHandle', 'tiktok', 'tiktokHandle', 'discord',
@@ -36,19 +37,36 @@ function createModels(db, config) {
 
   const imageUrl = (file) => (file ? `/uploads/${file}` : null);
 
-  function serializeMod(row, { admin = false } = {}) {
+  function parseJson(text, fallback) {
+    try {
+      const v = JSON.parse(text);
+      return Array.isArray(v) ? v : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  // `detail` adds the long description (the shop list does not need it).
+  function serializeMod(row, { admin = false, detail = true } = {}) {
     const screenshots = q.shots.all(row.id);
+    const license = licenseByName(row.license) || licenseByName(DEFAULT_LICENSE);
     const out = {
       id: row.id,
       name: row.name,
-      description: row.description,
-      category: row.category,
+      summary: row.summary,
+      class: row.class_name,
+      mainCategory: row.main_category,
+      categories: parseJson(row.extra_categories, []),
+      license: { name: license.name, url: license.url },
+      links: parseJson(row.links, []),
       price: row.price_cents / 100,
       icon: imageUrl(row.icon_file),
       screenshots: screenshots.map((s) => imageUrl(s.file)),
       available: Boolean(row.file_stored)
     };
+    if (detail || admin) out.description = row.description;
     if (admin) {
+      out.unlisted = Boolean(row.unlisted);
       out.screenshotIds = screenshots.map((s) => s.id);
       out.fileName = row.file_name;
       out.fileSize = row.file_size;
@@ -57,7 +75,12 @@ function createModels(db, config) {
     return out;
   }
 
-  const listMods = (opts) => q.mods.all().map((r) => serializeMod(r, opts));
+  // The public shop hides unlisted projects; they still open by direct link.
+  function listMods({ admin = false } = {}) {
+    return q.mods.all()
+      .filter((r) => admin || !r.unlisted)
+      .map((r) => serializeMod(r, { admin, detail: admin }));
+  }
 
   function getMod(id, opts) {
     const row = typeof id === 'string' ? q.mod.get(id) : null;

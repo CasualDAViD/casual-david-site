@@ -6,6 +6,7 @@ const { bodyOf, safeFileName } = require('../validate');
 const { newOrderReference } = require('../models');
 const { receiptEmail } = require('../mailer');
 const { PaystackError } = require('../paystack');
+const { CLASSES, LICENSES, LINK_TYPES, LIMITS } = require('../catalog');
 
 module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
   const router = express.Router();
@@ -17,7 +18,8 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
       rates: config.rates,
       payments: config.paystack.enabled,
       passwordReset: mailer.enabled,
-      oauth: { google: config.oauth.google.enabled, discord: config.oauth.discord.enabled }
+      oauth: { google: config.oauth.google.enabled, discord: config.oauth.discord.enabled },
+      catalog: { classes: CLASSES, licenses: LICENSES, linkTypes: LINK_TYPES, limits: LIMITS }
     });
   });
 
