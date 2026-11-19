@@ -11,15 +11,14 @@
     .checkout-page { max-width: 1000px; margin: 2rem auto; padding: 0 1.5rem; }
     .checkout-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; }
     .checkout-card { background: rgba(255,255,255,0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.8); border-radius: 20px; padding: 1.5rem; }
+    [data-theme="dark"] .checkout-card { background: rgba(30,41,59,0.85); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
     .checkout-card h2 { font-family: var(--heading); font-size: 1.4rem; margin-bottom: 1.25rem; }
     .order-item { display: flex; gap: 1rem; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; margin-bottom: 1rem; }
+    [data-theme="dark"] .order-item { border-color: #334155; }
     .order-item img { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: #f1f5f9; }
-    .methods { display: flex; flex-direction: column; gap: 0.6rem; }
-    .method { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border: 1px solid #e2e8f0; border-radius: 12px; cursor: pointer; }
-    .method.selected { border-color: #2563eb; background: #eff6ff; }
-    .method input { accent-color: #2563eb; }
     .summary-row { display: flex; justify-content: space-between; padding: 0.5rem 0; font-size: 0.95rem; }
     .summary-total { font-size: 1.25rem; font-weight: 700; border-top: 1px solid #e2e8f0; margin-top: 0.5rem; padding-top: 0.75rem; }
+    [data-theme="dark"] .summary-total { border-color: #334155; }
     .pay-btn { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 1rem; }
     .pay-btn:hover { background: #1d4ed8; }
     .back { display: inline-flex; align-items: center; gap: 0.4rem; color: #2563eb; text-decoration: none; margin-bottom: 1rem; }
@@ -58,7 +57,6 @@
     <a href="mods.html">Shop</a>
   </div>
 
-
   <div class="checkout-page">
     <a href="#" class="back" onclick="history.back(); return false;">&larr; Back</a>
     <div class="checkout-layout">
@@ -90,6 +88,8 @@
     </div>
   </footer>
 
+  <script type="module" src="firebase-auth.js"></script>
+  <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
@@ -101,36 +101,56 @@
       if (html) payMsg.innerHTML = html; else payMsg.textContent = text;
     }
 
+    async function waitForAuth() {
+      return new Promise((resolve) => {
+        if (window.firebaseAuth && window.firebaseAuth.auth) {
+          const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+            unsub();
+            resolve(user);
+          });
+        } else {
+          setTimeout(() => resolve(null), 800);
+        }
+      });
+    }
+
     async function init() {
-      const user = await getMe();
+      const user = await waitForAuth();
       if (!user) {
         location.replace('login.html?next=' + encodeURIComponent(location.pathname + location.search));
         return;
       }
-      let mod, cfg;
+
+      let mod;
       try {
-        cfg = await getConfig();
-        mod = (await api('/api/mods/' + encodeURIComponent(modId))).mod;
+        if (!window.firebaseMods) await new Promise(r => setTimeout(r, 400));
+        mod = await window.firebaseMods.get(modId);
       } catch (err) {
-        document.getElementById('order-item').textContent = err.status === 404 ? 'That mod could not be found.' : err.message;
+        document.getElementById('order-item').textContent = err.message || 'Could not load mod.';
+        return;
+      }
+      if (!mod) {
+        document.getElementById('order-item').textContent = 'That mod could not be found.';
         return;
       }
 
+      const versions = mod.versions || [];
+      const price = versions.length ? versions[0].price : (mod.price || 0);
+      const hasFile = (versions.length && versions[0].fileUrl) || mod.fileUrl;
       const currency = getCurrency();
+
       document.getElementById('order-item').innerHTML = `
         ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<div style="width:56px;height:56px;background:#f1f5f9;border-radius:10px;"></div>'}
         <div>
           <strong>${escapeHtml(mod.name)}</strong>
           <div style="font-size:0.85rem; color:#64748b;">Delivery: Instant</div>
         </div>`;
-      document.getElementById('price').textContent = formatPrice(mod.price, currency);
-      // Paystack always charges in naira, so show exactly what will be taken.
-      const ngn = formatPrice(mod.price, 'NGN', cfg.rates);
+      document.getElementById('price').textContent = formatPrice(price, currency);
+      const ngn = formatPrice(price, 'NGN');
       document.getElementById('total').textContent = ngn;
       document.getElementById('charge-note').textContent = 'You will be charged in Nigerian naira (' + ngn + ').';
 
-      if (!mod.available) { showError('This mod is not available to buy yet.'); return; }
-      if (!cfg.payments) { showError('Payments are not set up yet. Please check back soon.'); return; }
+      if (!hasFile) { showError('This mod is not available to buy yet.'); return; }
       payBtn.disabled = false;
     }
 
@@ -139,17 +159,14 @@
       payBtn.textContent = 'Redirecting to Paystack\u2026';
       showError('');
       try {
-        const r = await api('/api/orders', { method: 'POST', json: { modId } });
-        location.href = r.authorizationUrl;
+        // TODO: connect to Paystack. For now show a message.
+        showError('Payment integration is not fully wired yet. The mod and file are ready.');
+        payBtn.textContent = 'Pay now';
+        payBtn.disabled = false;
       } catch (err) {
         payBtn.textContent = 'Pay now';
-        if (err.code === 'already_owned') {
-          payBtn.disabled = true;
-          showError('', 'You already own this. <a href="history.html">Download it from your purchase history</a>.');
-        } else {
-          payBtn.disabled = false;
-          showError(err.message);
-        }
+        payBtn.disabled = false;
+        showError(err.message);
       }
     });
 
