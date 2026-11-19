@@ -1,13 +1,12 @@
 // Firebase Auth client (modular SDK via CDN)
-// Replace the config below with values from Firebase console → Project settings → Your apps → SDK setup and configuration
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyBHuDf1Yrbktjv15mFJtTdLd3YA2XCmDUs",
   authDomain: "casualdavid-site.firebaseapp.com",
   projectId: "casualdavid-site",
-  storageBucket: "casualdavid-site.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  storageBucket: "casualdavid-site.firebasestorage.app",
+  messagingSenderId: "884094241084",
+  appId: "1:884094241084:web:2ab1c7940ac014450cf639"
 };
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
