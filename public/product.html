@@ -92,6 +92,7 @@
     </div>
   </footer>
 
+  <script type="module" src="firebase-auth.js"></script>
   <script src="api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
@@ -110,14 +111,14 @@
       }
       const currency = getCurrency();
       images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
-      document.title = mod.name + ' \u2022 Casual_DAViD';
+      document.title = mod.name + ' • Casual_DAViD';
       box.innerHTML = `
         <div class="product-layout">
           <div class="gallery">
             <div class="gallery-main" id="main-img" onclick="openLightbox(currentIndex)">
-              ${images[0] ? `<img src="${escapeHtml(images[0])}" alt="">` : '<span style="font-size:3rem;">\u{1F4E6}</span>'}
-              ${images.length > 1 ? `<button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">\u2190</button>
-              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">\u2192</button>` : ''}
+              ${images[0] ? `<img src="${escapeHtml(images[0])}" alt="">` : '<span style="font-size:3rem;">📦</span>'}
+              ${images.length > 1 ? `<button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">←</button>
+              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">→</button>` : ''}
             </div>
             <div class="gallery-thumbs" id="thumbs">
               ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" onclick="goTo(${i})" alt="">`).join('')}
