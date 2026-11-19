@@ -12,7 +12,9 @@
     .back-link { display: inline-flex; align-items: center; gap: 0.4rem; color: #2563eb; text-decoration: none; font-weight: 500; margin-bottom: 1rem; }
     .product-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; }
     .gallery { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.25rem; position: relative; }
+    [data-theme="dark"] .gallery { background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); }
     .gallery-main { width: 100%; aspect-ratio: 1; background: #f1f5f9; border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.75rem; position: relative; cursor: zoom-in; }
+    [data-theme="dark"] .gallery-main { background: #0f172a; }
     .gallery-main img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; z-index: 2; }
     .gallery-nav.prev { left: 0.5rem; }
@@ -21,12 +23,15 @@
     .gallery-thumbs img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
     .gallery-thumbs img.active { border-color: #2563eb; }
     .product-info { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.5rem; }
+    [data-theme="dark"] .product-info { background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
     .product-info h1 { font-family: var(--heading); font-size: 1.75rem; margin-bottom: 0.5rem; }
     .product-price { font-size: 2rem; font-weight: 700; color: var(--primary); margin: 1rem 0; }
     .delivery { display: flex; justify-content: space-between; padding: 0.75rem 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin: 1rem 0; font-size: 0.95rem; }
+    [data-theme="dark"] .delivery { border-color: #334155; }
     .buy-now { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 0.5rem; }
     .buy-now:hover { background: #1d4ed8; }
     .desc { margin-top: 1.5rem; color: #475569; line-height: 1.6; }
+    [data-theme="dark"] .desc { color: #cbd5e1; }
     .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; }
     .lightbox.open { display: flex; }
     .lightbox-inner { position: relative; max-width: 90vw; max-height: 85vh; }
@@ -70,10 +75,9 @@
     <a href="mods.html">Shop</a>
   </div>
 
-
   <div class="product-page">
     <a href="mods.html" class="back-link" style="display:inline-flex; align-items:center; gap:0.4rem; color:#2563eb; text-decoration:none; font-weight:600; font-size:1rem; margin-bottom:1rem; padding:0.4rem 0;">← Back to mods</a>
-    <div id="product-content"></div>
+    <div id="product-content">Loading…</div>
   </div>
 
   <div class="lightbox" id="lightbox">
@@ -93,23 +97,47 @@
   </footer>
 
   <script type="module" src="firebase-auth.js"></script>
+  <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script>
     const params = new URLSearchParams(location.search);
     let images = [];
     let currentIndex = 0;
 
+    function renderDescription(md) {
+      if (!md) return '';
+      return md
+        .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        .replace(/\n/g, '<br>');
+    }
+
     async function loadProduct() {
       const box = document.getElementById('product-content');
+      const id = params.get('id');
+      if (!id) {
+        box.innerHTML = '<p>Mod not found.</p>';
+        return;
+      }
       let mod;
       try {
-        await getConfig();
-        mod = (await api('/api/mods/' + encodeURIComponent(params.get('id') || ''))).mod;
+        if (!window.firebaseMods) await new Promise(r => setTimeout(r, 400));
+        mod = await window.firebaseMods.get(id);
       } catch (err) {
-        box.innerHTML = '<p>' + (err.status === 404 ? 'Mod not found.' : escapeHtml(err.message)) + '</p>';
+        box.innerHTML = '<p>' + escapeHtml(err.message) + '</p>';
+        return;
+      }
+      if (!mod) {
+        box.innerHTML = '<p>Mod not found.</p>';
         return;
       }
       const currency = getCurrency();
+      const versions = mod.versions || [];
+      const price = versions.length ? versions[0].price : (mod.price || 0);
+      const hasFile = (versions.length && versions[0].fileUrl) || mod.fileUrl;
       images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
       document.title = mod.name + ' • Casual_DAViD';
       box.innerHTML = `
@@ -126,15 +154,15 @@
           </div>
           <div class="product-info">
             <h1>${escapeHtml(mod.name)}</h1>
-            <span class="mod-cat">${escapeHtml(mod.category || 'Mod')}</span>
-            <div class="product-price">${formatPrice(mod.price, currency)}</div>
+            <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.category || 'Mod')}</span>
+            <div class="product-price">${formatPrice(price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
-            ${mod.available
+            ${hasFile
               ? `<button class="buy-now" id="buy-now">Buy now</button>`
               : `<button class="buy-now" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>`}
             <div class="desc">
-              <h3 style="margin-bottom:0.5rem; color:#0f172a;">Description</h3>
-              <p style="white-space:pre-line;">${escapeHtml(mod.description)}</p>
+              <h3 style="margin-bottom:0.5rem;">Description</h3>
+              <div>${renderDescription(mod.description || mod.summary || '')}</div>
             </div>
           </div>
         </div>
@@ -167,20 +195,6 @@
     function lbPrev() { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
 
     loadProduct();
-
-    // Theme
-    const themes = ['system', 'light', 'dark'];
-    let themeIdx = themes.indexOf(localStorage.getItem('cd_theme') || 'system');
-    function applyTheme() {
-      const t = themes[themeIdx];
-      localStorage.setItem('cd_theme', t);
-      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
-      else document.documentElement.removeAttribute('data-theme');
-      document.getElementById('theme-btn').textContent = t === 'dark' ? '☀️' : t === 'light' ? '🌙' : '💻';
-    }
-    function cycleTheme() { themeIdx = (themeIdx + 1) % 3; applyTheme(); }
-    applyTheme();
   </script>
 <script src="theme.js"></script>
 <script src="account.js"></script>
