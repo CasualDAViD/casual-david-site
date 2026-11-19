@@ -119,6 +119,7 @@ function renderVersions() {
   const list = $('versions-list');
   list.innerHTML = wz.versions.map((v, i) => `
     <div class="version-row" data-i="${i}">
+      <button type="button" class="version-x" data-remove="${i}" title="Remove version">✕</button>
       <input type="text" placeholder="Version (e.g. 1.21.11)" value="${v.name || ''}" data-field="name">
       <input type="number" placeholder="Price" step="0.01" min="0" value="${v.price || ''}" data-field="price">
       <input type="text" placeholder="Display name / changelog" value="${v.displayName || ''}" data-field="displayName">
@@ -126,7 +127,6 @@ function renderVersions() {
         <input type="file" accept=".jar,.zip,.mrpack,.7z,.rar" data-file="${i}">
         ${v.fileName || 'Choose file'}
       </label>
-      <button type="button" class="btn btn-danger" style="padding:0.4rem 0.6rem; margin:0;" data-remove="${i}">✕</button>
     </div>
   `).join('');
 
