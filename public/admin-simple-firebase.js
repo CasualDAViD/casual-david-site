@@ -1,10 +1,8 @@
-// Simple admin: Firebase Auth + Firestore (Storage optional)
-// Markdown description with live preview
+// Simple admin: Firebase Auth + Firestore + Cloudflare R2 uploads
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBHuDf1Yrbktjv15mFJtTdLd3YA2XCmDUs",
@@ -18,10 +16,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
 const ADMIN_EMAILS = ['okpeidavid7@gmail.com'];
+const UPLOAD_URL = 'https://casualdavid-upload.YOUR_SUBDOMAIN.workers.dev'; // change after deploying the Worker
 
 const $ = (id) => document.getElementById(id);
 
@@ -76,7 +74,6 @@ function showTab(tab) {
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-// Markdown preview
 function updatePreview() {
   const md = $('mod-desc').value || '';
   const html = md
@@ -137,15 +134,18 @@ async function loadMods() {
   }
 }
 
-async function uploadFile(file, path) {
-  try {
-    const r = ref(storage, path);
-    await uploadBytes(r, file);
-    return await getDownloadURL(r);
-  } catch (e) {
-    console.warn('Upload skipped:', e.message);
-    return null;
-  }
+async function uploadToR2(file) {
+  const res = await fetch(UPLOAD_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+      'X-Filename': file.name
+    },
+    body: file
+  });
+  if (!res.ok) throw new Error('Upload failed');
+  const data = await res.json();
+  return data.url;
 }
 
 $('save-mod-btn').addEventListener('click', async () => {
@@ -179,11 +179,11 @@ $('save-mod-btn').addEventListener('click', async () => {
     };
 
     if ($('mod-icon').files[0]) {
-      const url = await uploadFile($('mod-icon').files[0], `mods/${editId}/icon`);
+      const url = await uploadToR2($('mod-icon').files[0]);
       if (url) data.icon = url;
     }
     if ($('mod-file').files[0]) {
-      const url = await uploadFile($('mod-file').files[0], `mods/${editId}/file`);
+      const url = await uploadToR2($('mod-file').files[0]);
       if (url) {
         data.fileUrl = url;
         data.fileName = $('mod-file').files[0].name;
