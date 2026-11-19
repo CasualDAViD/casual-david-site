@@ -1,29 +1,98 @@
 /* Create / Edit Project wizard (admin). The sign-in screen styles live in admin.html. */
 
-#tab-mods input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: #2563eb; }
-#tab-mods input[type="file"] { display: none; }
-#tab-mods button, #tab-mods textarea:not(#p-description), #tab-mods select, #tab-mods input { font-family: inherit; }
+/* ---- dark mode overrides ---- */
+[data-theme="dark"] body,
+[data-theme="dark"] .admin-wrap {
+  color: #e2e8f0;
+}
+[data-theme="dark"] .card,
+[data-theme="dark"] .wz-panel,
+[data-theme="dark"] .admin-login-card {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+[data-theme="dark"] .card h2,
+[data-theme="dark"] .wz-header h2,
+[data-theme="dark"] .wz-label,
+[data-theme="dark"] label {
+  color: #f1f5f9;
+}
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: #0f172a;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+[data-theme="dark"] .muted,
+[data-theme="dark"] .wz-hint,
+[data-theme="dark"] .wz-counter {
+  color: #94a3b8;
+}
+[data-theme="dark"] .wz-banner {
+  background: #1e3a5f;
+  color: #bfdbfe;
+  border-left-color: #3b82f6;
+}
+[data-theme="dark"] .wz-steps button {
+  color: #94a3b8;
+}
+[data-theme="dark"] .wz-steps button.active {
+  color: #f1f5f9;
+  border-bottom-color: #3b82f6;
+}
+[data-theme="dark"] .wz-logo-box {
+  background: #0f172a;
+  border-color: #334155;
+}
+[data-theme="dark"] .wz-upload-btn,
+[data-theme="dark"] .wz-ghost {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+[data-theme="dark"] .projects-head h2 {
+  color: #f1f5f9;
+}
+[data-theme="dark"] .mod-item {
+  border-color: #334155;
+}
+[data-theme="dark"] .tabs button {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+[data-theme="dark"] .tabs button.active {
+  background: #2563eb;
+  color: white;
+}
 
-/* Force proper stacked form layout in socials and account tabs */
+/* ---- socials & account form stacking ---- */
 #tab-socials label, #tab-account label {
-  display: block;
+  display: block !important;
   font-weight: 500;
-  margin: 1rem 0 0.35rem;
+  margin: 1.1rem 0 0.4rem !important;
   font-size: 0.9rem;
   clear: both;
+  width: 100%;
 }
 #tab-socials input, #tab-account input,
 #tab-socials textarea, #tab-account textarea,
 #tab-socials select, #tab-account select {
-  display: block;
-  width: 100%;
+  display: block !important;
+  width: 100% !important;
   max-width: 100%;
   box-sizing: border-box;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.2rem !important;
 }
 #tab-socials .btn, #tab-account .btn {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem !important;
+  display: inline-block;
 }
+
+#tab-mods input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: #2563eb; }
+#tab-mods input[type="file"] { display: none; }
+#tab-mods button, #tab-mods textarea:not(#p-description), #tab-mods select, #tab-mods input { font-family: inherit; }
 
 .projects-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .projects-head h2 { margin: 0; }
