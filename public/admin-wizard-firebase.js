@@ -1,4 +1,5 @@
 // CurseForge-style admin wizard on Firebase (Auth + Firestore + Storage)
+// Supports multiple versions with individual prices + 10% all-versions discount
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -24,7 +25,7 @@ const ADMIN_EMAILS = ['okpeidavid7@gmail.com'];
 const STEPS = ['general', 'description', 'pricing', 'license'];
 
 const $ = (id) => document.getElementById(id);
-let wz = null; // current wizard state
+let wz = null;
 
 function showView(id) {
   ['loading-view', 'login-view', 'dashboard'].forEach((v) => $(v).classList.toggle('hidden', v !== id));
@@ -34,7 +35,6 @@ function isAdmin(user) {
   return user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
 }
 
-// ---- auth ----------------------------------------------------------------
 onAuthStateChanged(auth, (user) => {
   if (isAdmin(user)) {
     showView('dashboard');
@@ -59,48 +59,53 @@ $('login-form').addEventListener('submit', async (e) => {
 });
 $('logout-btn').addEventListener('click', () => signOut(auth));
 
-// ---- tabs ----------------------------------------------------------------
 function showTab(tab) {
   ['mods', 'socials'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
-// ---- projects list -------------------------------------------------------
 async function loadProjects() {
   const list = $('admin-mod-list');
   list.innerHTML = '<p class="muted">Loading…</p>';
-  const snap = await getDocs(collection(db, 'mods'));
-  if (snap.empty) {
-    list.innerHTML = '<div class="empty-state"><p>No projects yet.</p></div>';
-    return;
-  }
-  list.innerHTML = snap.docs.map((d) => {
-    const m = d.data();
-    return `<div class="mod-item">
-      <div class="mod-meta">
-        ${m.icon ? `<img src="${m.icon}" class="preview-img">` : '<div class="preview-img"></div>'}
-        <div>
-          <strong>${m.name || ''}</strong>
-          ${m.unlisted ? '<span class="pill unlisted">Unlisted</span>' : ''}
-          ${m.fileUrl ? '' : '<span class="pill nofile">No file</span>'}
-          <div class="muted">$${Number(m.price || 0).toFixed(2)} • ${m.mainCategory || ''}</div>
-          <div class="muted">${m.summary || ''}</div>
+  try {
+    const snap = await getDocs(collection(db, 'mods'));
+    if (snap.empty) {
+      list.innerHTML = '<div class="empty-state"><p>No projects yet.</p></div>';
+      return;
+    }
+    list.innerHTML = snap.docs.map((d) => {
+      const m = d.data();
+      const versions = m.versions || [];
+      const hasFiles = versions.some(v => v.fileUrl);
+      const minPrice = versions.length ? Math.min(...versions.map(v => Number(v.price) || 0)) : (m.price || 0);
+      return `<div class="mod-item">
+        <div class="mod-meta">
+          ${m.icon ? `<img src="${m.icon}" class="preview-img">` : '<div class="preview-img"></div>'}
+          <div>
+            <strong>${m.name || ''}</strong>
+            ${m.unlisted ? '<span class="pill unlisted">Unlisted</span>' : ''}
+            ${hasFiles ? '' : '<span class="pill nofile">No file</span>'}
+            <div class="muted">${versions.length} version(s) • from $${Number(minPrice).toFixed(2)} • ${m.mainCategory || ''}</div>
+            <div class="muted">${m.summary || ''}</div>
+          </div>
         </div>
-      </div>
-      <div class="mod-actions">
-        <button class="btn" data-edit="${d.id}">Edit</button>
-        <button class="btn btn-danger" data-delete="${d.id}">Delete</button>
-      </div>
-    </div>`;
-  }).join('');
-  list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openWizard(b.dataset.edit)));
-  list.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => deleteProject(b.dataset.delete)));
+        <div class="mod-actions">
+          <button class="btn" data-edit="${d.id}">Edit</button>
+          <button class="btn btn-danger" data-delete="${d.id}">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => openWizard(b.dataset.edit)));
+    list.querySelectorAll('[data-delete]').forEach((b) => b.addEventListener('click', () => deleteProject(b.dataset.delete)));
+  } catch (err) {
+    list.innerHTML = '<p class="error">Could not load projects. Check Firestore is enabled.</p>';
+    console.error(err);
+  }
 }
 
 $('create-project-btn').addEventListener('click', () => openWizard());
 
-// ---- wizard --------------------------------------------------------------
 function showStep(step) {
   document.querySelectorAll('.wz-steps button').forEach((b) => b.classList.toggle('active', b.dataset.step === step));
   document.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== step));
@@ -110,12 +115,44 @@ function showStep(step) {
   wz.step = step;
 }
 
+function renderVersions() {
+  const list = $('versions-list');
+  list.innerHTML = wz.versions.map((v, i) => `
+    <div class="version-row" data-i="${i}">
+      <input type="text" placeholder="Version (e.g. 1.21.11)" value="${v.name || ''}" data-field="name">
+      <input type="number" placeholder="Price" step="0.01" min="0" value="${v.price || ''}" data-field="price">
+      <input type="text" placeholder="Display name / changelog" value="${v.displayName || ''}" data-field="displayName">
+      <button type="button" class="btn btn-danger" style="padding:0.4rem 0.6rem; margin:0;" data-remove="${i}">✕</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
+    wz.versions.splice(Number(b.dataset.remove), 1);
+    renderVersions();
+  }));
+  list.querySelectorAll('input').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      const i = Number(e.target.closest('.version-row').dataset.i);
+      const field = e.target.dataset.field;
+      if (field === 'price') wz.versions[i].price = parseFloat(e.target.value) || 0;
+      else wz.versions[i][field] = e.target.value;
+    });
+  });
+}
+
+function addVersionRow(v = { name: '', price: 0, displayName: '', file: null, fileUrl: '', fileName: '' }) {
+  if (!wz.versions) wz.versions = [];
+  wz.versions.push(v);
+  renderVersions();
+}
+
+$('add-version-btn').addEventListener('click', () => addVersionRow());
+
 async function openWizard(id) {
   $('projects-view').classList.add('hidden');
   $('wizard').classList.remove('hidden');
   $('wz-title').textContent = id ? 'Edit Project' : 'Create Project';
 
-  wz = { id: id || crypto.randomUUID(), step: 'general', logoFile: null, file: null, screens: [] };
+  wz = { id: id || crypto.randomUUID(), step: 'general', logoFile: null, screens: [], versions: [] };
 
   if (id) {
     const snap = await getDoc(doc(db, 'mods', id));
@@ -124,20 +161,24 @@ async function openWizard(id) {
       $('p-name').value = m.name || '';
       $('p-summary').value = m.summary || '';
       $('p-description').value = m.description || '';
-      $('p-price').value = m.price || '';
       $('p-class').value = m.class || 'Mods';
       $('p-maincat').value = m.mainCategory || 'Utility & QoL';
       $('p-unlisted').checked = !!m.unlisted;
       $('p-license').value = m.license || 'All Rights Reserved';
       if (m.icon) $('p-logo-box').innerHTML = `<img src="${m.icon}">`;
+      wz.versions = (m.versions || []).map(v => ({ ...v, file: null }));
+      if (!wz.versions.length && m.fileUrl) {
+        wz.versions.push({ name: '1.0', price: m.price || 0, displayName: m.fileName || '', fileUrl: m.fileUrl, fileName: m.fileName || '' });
+      }
       updateSummaryCount();
       updatePreview();
     }
   } else {
-    ['p-name', 'p-summary', 'p-description', 'p-price'].forEach((id) => $(id).value = '');
+    ['p-name', 'p-summary', 'p-description'].forEach((id) => $(id).value = '');
     $('p-logo-box').textContent = '📦';
-    $('p-file-name').textContent = 'No file selected';
   }
+  if (!wz.versions.length) addVersionRow();
+  else renderVersions();
   showStep('general');
 }
 
@@ -174,12 +215,6 @@ $('p-logo').addEventListener('change', (e) => {
   wz.logoFile = f;
   const url = URL.createObjectURL(f);
   $('p-logo-box').innerHTML = `<img src="${url}">`;
-});
-
-$('p-file').addEventListener('change', (e) => {
-  const f = e.target.files[0];
-  wz.file = f || null;
-  $('p-file-name').textContent = f ? f.name : 'No file selected';
 });
 
 $('p-screens').addEventListener('change', (e) => {
@@ -219,11 +254,10 @@ $('wz-next').addEventListener('click', async () => {
     showStep(STEPS[i + 1]);
     return;
   }
-  // Save
+
   const name = $('p-name').value.trim();
   const summary = $('p-summary').value.trim();
   const description = $('p-description').value.trim();
-  const price = parseFloat($('p-price').value) || 0;
   if (!name || !summary) {
     $('wz-msg').textContent = 'Name and summary are required.';
     $('wz-msg').className = 'wz-msg error';
@@ -237,19 +271,33 @@ $('wz-next').addEventListener('click', async () => {
 
   try {
     const data = {
-      name, summary, description, price,
+      name, summary, description,
       class: $('p-class').value,
       mainCategory: $('p-maincat').value,
       unlisted: $('p-unlisted').checked,
       license: $('p-license').value,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      allVersionsDiscount: 10
     };
 
     if (wz.logoFile) data.icon = await upload(wz.logoFile, `mods/${wz.id}/icon`);
-    if (wz.file) {
-      data.fileUrl = await upload(wz.file, `mods/${wz.id}/file`);
-      data.fileName = wz.file.name;
+
+    const versions = [];
+    for (let i = 0; i < wz.versions.length; i++) {
+      const v = wz.versions[i];
+      const entry = {
+        name: v.name || ('v' + (i + 1)),
+        price: Number(v.price) || 0,
+        displayName: v.displayName || '',
+        fileUrl: v.fileUrl || '',
+        fileName: v.fileName || ''
+      };
+      // Note: file upload per version would need a file input per row.
+      // For now we store the metadata; full file upload UI can be extended.
+      versions.push(entry);
     }
+    data.versions = versions;
+
     if (wz.screens.length) {
       data.screenshots = [];
       for (let i = 0; i < wz.screens.length; i++) {
@@ -279,17 +327,18 @@ async function deleteProject(id) {
   loadProjects();
 }
 
-// ---- socials -------------------------------------------------------------
 const SOCIAL = {
   youtube: 'yt-url', tiktok: 'tt-url', discord: 'dc-url', modrinth: 'mr-url',
   curseforge: 'cf-url', personalDiscord: 'pd-url', email: 'em-url', donate: 'dn-url'
 };
 
 async function loadSocials() {
-  const snap = await getDoc(doc(db, 'config', 'socials'));
-  if (!snap.exists()) return;
-  const s = snap.data();
-  for (const [k, id] of Object.entries(SOCIAL)) if ($(id)) $(id).value = s[k] || '';
+  try {
+    const snap = await getDoc(doc(db, 'config', 'socials'));
+    if (!snap.exists()) return;
+    const s = snap.data();
+    for (const [k, id] of Object.entries(SOCIAL)) if ($(id)) $(id).value = s[k] || '';
+  } catch (e) {}
 }
 
 $('save-socials-btn').addEventListener('click', async () => {

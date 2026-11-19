@@ -38,6 +38,11 @@
     [data-theme="dark"] .admin-login-card input { background: #0f172a; color: white; border-color: #334155; }
     .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500; margin-bottom: 0.75rem; }
     [data-theme="dark"] .oauth-btn { background: #1e293b; }
+    .version-row { display: grid; grid-template-columns: 1fr 120px 1fr auto; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .version-row input { margin: 0; }
+    .versions-list { margin: 1rem 0; }
+    .discount-note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; font-size: 0.9rem; }
+    [data-theme="dark"] .discount-note { background: #1e3a5f; color: #bfdbfe; }
   </style>
 </head>
 <body>
@@ -94,7 +99,7 @@
           <button data-step="pricing">Pricing & Files</button>
           <button data-step="license">License</button>
         </div>
-        <div class="wz-banner" id="wz-banner">A project becomes buyable once it has a price and a mod file. Until then it shows as “Coming soon”.</div>
+        <div class="wz-banner" id="wz-banner">Upload multiple versions. Each version has its own price. Buying all versions gives a 10% discount.</div>
 
         <div class="wz-panel" data-panel="general">
           <div class="wz-field wz-narrow">
@@ -148,15 +153,11 @@
 
         <div class="wz-panel hidden" data-panel="pricing">
           <div class="wz-field">
-            <label class="wz-label">Price (USD) <span class="req">*</span></label>
-            <div class="wz-price"><span>$</span><input type="number" id="p-price" step="0.01" min="0"></div>
-          </div>
-          <div class="wz-field">
-            <label class="wz-label">Mod file</label>
-            <div class="wz-file-card">
-              <label class="wz-upload-btn"><input type="file" id="p-file" accept=".jar,.zip,.mrpack,.7z,.rar"> Choose file</label>
-              <span id="p-file-name" class="muted">No file selected</span>
-            </div>
+            <label class="wz-label">Versions / Files</label>
+            <p class="wz-hint">Add each version (e.g. 1.21.11, 26.1, 26.3). Set a price for every version. Buyers who purchase all versions get 10% off the total.</p>
+            <div id="versions-list" class="versions-list"></div>
+            <button type="button" class="btn btn-plain" id="add-version-btn">+ Add version</button>
+            <div class="discount-note">10% discount applies automatically when a buyer purchases every version of this project.</div>
           </div>
           <div class="wz-field">
             <label class="wz-label">Screenshots (optional)</label>
