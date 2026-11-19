@@ -4,6 +4,27 @@
 #tab-mods input[type="file"] { display: none; }
 #tab-mods button, #tab-mods textarea:not(#p-description), #tab-mods select, #tab-mods input { font-family: inherit; }
 
+/* Force proper stacked form layout in socials and account tabs */
+#tab-socials label, #tab-account label {
+  display: block;
+  font-weight: 500;
+  margin: 1rem 0 0.35rem;
+  font-size: 0.9rem;
+  clear: both;
+}
+#tab-socials input, #tab-account input,
+#tab-socials textarea, #tab-account textarea,
+#tab-socials select, #tab-account select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 0.25rem;
+}
+#tab-socials .btn, #tab-account .btn {
+  margin-top: 1.25rem;
+}
+
 .projects-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .projects-head h2 { margin: 0; }
 .projects-head .btn { margin-top: 0; }
