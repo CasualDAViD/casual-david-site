@@ -1,4 +1,36 @@
-/* Dark mode fixes */
+/* Force hide all file inputs */
+input[type="file"] {
+  display: none !important;
+}
+
+/* Socials & account stacking */
+#tab-socials label,
+#tab-account label {
+  display: block !important;
+  font-weight: 600;
+  margin: 1rem 0 0.35rem !important;
+  width: 100%;
+  clear: both;
+}
+#tab-socials input,
+#tab-account input,
+#tab-socials textarea,
+#tab-account textarea,
+#tab-socials select,
+#tab-account select {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 0.4rem !important;
+  padding: 0.65rem 0.85rem;
+}
+#tab-socials .btn,
+#tab-account .btn {
+  margin-top: 1.25rem !important;
+}
+
+/* Dark mode */
 [data-theme="dark"] .wz-panel,
 [data-theme="dark"] .card {
   background: #1e293b;
@@ -6,21 +38,15 @@
   color: #e2e8f0;
 }
 [data-theme="dark"] .wz-editor-pane,
-[data-theme="dark"] .wz-preview-pane {
-  background: #0f172a;
-  border-color: #334155;
-  color: #e2e8f0;
-}
+[data-theme="dark"] .wz-preview-pane,
 [data-theme="dark"] .wz-preview {
   background: #0f172a;
+  border-color: #334155;
   color: #e2e8f0;
 }
 [data-theme="dark"] .wz-toolbar {
   background: #1e293b;
   border-color: #334155;
-}
-[data-theme="dark"] .wz-toolbar button {
-  color: #cbd5e1;
 }
 [data-theme="dark"] input,
 [data-theme="dark"] textarea,
@@ -34,7 +60,7 @@
   color: #cbd5e1;
 }
 
-/* Hide ugly steps scrollbar */
+/* Steps scrollbar */
 .wz-steps {
   overflow-x: auto;
   scrollbar-width: none;
@@ -44,23 +70,23 @@
   display: none;
 }
 
-/* Better input spacing */
+/* Better field spacing */
 .wz-field input,
 .wz-field textarea,
 .wz-field select {
   padding: 0.7rem 0.9rem;
   font-size: 1rem;
   min-height: 42px;
+  width: 100%;
+  box-sizing: border-box;
 }
+
 .version-row {
   display: grid;
   grid-template-columns: 1.2fr 100px 1.4fr auto auto;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.6rem;
-}
-.version-row input[type="file"] {
-  display: none;
 }
 .version-file-btn {
   background: #f1f5f9;
@@ -70,17 +96,34 @@
   cursor: pointer;
   font-size: 0.85rem;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
 }
 [data-theme="dark"] .version-file-btn {
   background: #1e293b;
   color: #e2e8f0;
   border-color: #475569;
 }
-.version-file-name {
-  font-size: 0.8rem;
-  color: #64748b;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+
+.wz-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: white;
+  border: 1px solid #94a3b8;
+  color: #0f172a;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+[data-theme="dark"] .wz-upload-btn {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+.wz-upload-btn svg {
+  width: 18px;
+  height: 18px;
 }
