@@ -19,7 +19,7 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 const ADMIN_EMAILS = ['okpeidavid7@gmail.com'];
-const UPLOAD_URL = 'https://casualdavid-upload.YOUR_SUBDOMAIN.workers.dev'; // change after deploying the Worker
+const UPLOAD_URL = 'https://casualdavid-upload.okpeidavid7.workers.dev/';
 
 const $ = (id) => document.getElementById(id);
 
@@ -77,7 +77,7 @@ document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('cli
 function updatePreview() {
   const md = $('mod-desc').value || '';
   const html = md
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
