@@ -1,5 +1,5 @@
 // CurseForge-style admin wizard on Firebase (Auth + Firestore + Storage)
-// Supports multiple versions with individual prices + 10% all-versions discount
+// Multiple versions with individual prices + file upload + 10% all-versions discount
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -122,19 +122,37 @@ function renderVersions() {
       <input type="text" placeholder="Version (e.g. 1.21.11)" value="${v.name || ''}" data-field="name">
       <input type="number" placeholder="Price" step="0.01" min="0" value="${v.price || ''}" data-field="price">
       <input type="text" placeholder="Display name / changelog" value="${v.displayName || ''}" data-field="displayName">
+      <label class="version-file-btn">
+        <input type="file" accept=".jar,.zip,.mrpack,.7z,.rar" data-file="${i}">
+        ${v.fileName || 'Choose file'}
+      </label>
       <button type="button" class="btn btn-danger" style="padding:0.4rem 0.6rem; margin:0;" data-remove="${i}">✕</button>
     </div>
   `).join('');
+
   list.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', () => {
     wz.versions.splice(Number(b.dataset.remove), 1);
     renderVersions();
   }));
-  list.querySelectorAll('input').forEach((inp) => {
+
+  list.querySelectorAll('input:not([type=file])').forEach((inp) => {
     inp.addEventListener('input', (e) => {
       const i = Number(e.target.closest('.version-row').dataset.i);
       const field = e.target.dataset.field;
       if (field === 'price') wz.versions[i].price = parseFloat(e.target.value) || 0;
       else wz.versions[i][field] = e.target.value;
+    });
+  });
+
+  list.querySelectorAll('input[type=file]').forEach((inp) => {
+    inp.addEventListener('change', (e) => {
+      const i = Number(e.target.dataset.file);
+      const f = e.target.files[0];
+      if (f) {
+        wz.versions[i].file = f;
+        wz.versions[i].fileName = f.name;
+        e.target.closest('label').textContent = f.name;
+      }
     });
   });
 }
@@ -292,8 +310,10 @@ $('wz-next').addEventListener('click', async () => {
         fileUrl: v.fileUrl || '',
         fileName: v.fileName || ''
       };
-      // Note: file upload per version would need a file input per row.
-      // For now we store the metadata; full file upload UI can be extended.
+      if (v.file) {
+        entry.fileUrl = await upload(v.file, `mods/${wz.id}/v${i}-${Date.now()}-${v.file.name}`);
+        entry.fileName = v.file.name;
+      }
       versions.push(entry);
     }
     data.versions = versions;
