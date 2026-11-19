@@ -1,5 +1,6 @@
 // CurseForge-style admin wizard on Firebase (Auth + Firestore + Storage)
 // Multiple versions with individual prices + file upload + 10% all-versions discount
+// File uploads are optional — projects save even if Storage is unavailable.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -261,9 +262,14 @@ $('wz-cancel').addEventListener('click', () => {
 $('wz-back').addEventListener('click', () => $('wz-cancel').click());
 
 async function upload(file, path) {
-  const r = ref(storage, path);
-  await uploadBytes(r, file);
-  return getDownloadURL(r);
+  try {
+    const r = ref(storage, path);
+    await uploadBytes(r, file);
+    return await getDownloadURL(r);
+  } catch (e) {
+    console.warn('Upload skipped (Storage unavailable):', e.message);
+    return null;
+  }
 }
 
 $('wz-next').addEventListener('click', async () => {
@@ -298,7 +304,10 @@ $('wz-next').addEventListener('click', async () => {
       allVersionsDiscount: 10
     };
 
-    if (wz.logoFile) data.icon = await upload(wz.logoFile, `mods/${wz.id}/icon`);
+    if (wz.logoFile) {
+      const url = await upload(wz.logoFile, `mods/${wz.id}/icon`);
+      if (url) data.icon = url;
+    }
 
     const versions = [];
     for (let i = 0; i < wz.versions.length; i++) {
@@ -311,8 +320,11 @@ $('wz-next').addEventListener('click', async () => {
         fileName: v.fileName || ''
       };
       if (v.file) {
-        entry.fileUrl = await upload(v.file, `mods/${wz.id}/v${i}-${Date.now()}-${v.file.name}`);
-        entry.fileName = v.file.name;
+        const url = await upload(v.file, `mods/${wz.id}/v${i}-${Date.now()}-${v.file.name}`);
+        if (url) {
+          entry.fileUrl = url;
+          entry.fileName = v.file.name;
+        }
       }
       versions.push(entry);
     }
@@ -321,7 +333,8 @@ $('wz-next').addEventListener('click', async () => {
     if (wz.screens.length) {
       data.screenshots = [];
       for (let i = 0; i < wz.screens.length; i++) {
-        data.screenshots.push(await upload(wz.screens[i], `mods/${wz.id}/shot-${Date.now()}-${i}`));
+        const url = await upload(wz.screens[i], `mods/${wz.id}/shot-${Date.now()}-${i}`);
+        if (url) data.screenshots.push(url);
       }
     }
 
