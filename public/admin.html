@@ -43,6 +43,22 @@
     [data-theme="dark"] .admin-login-card { background: rgba(30,41,59,0.9); border-color: rgba(255,255,255,0.1); }
     .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500; margin-bottom: 0.75rem; }
     [data-theme="dark"] .oauth-btn { background: #1e293b; }
+
+    /* Markdown editor */
+    .md-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.3rem; }
+    .md-pane { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-height: 220px; }
+    [data-theme="dark"] .md-pane { border-color: #475569; }
+    .md-toolbar { display: flex; gap: 0.2rem; padding: 0.35rem; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+    [data-theme="dark"] .md-toolbar { background: #1e293b; border-color: #334155; }
+    .md-toolbar button { background: none; border: 0; min-width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-weight: 700; }
+    .md-toolbar button:hover { background: #e2e8f0; }
+    [data-theme="dark"] .md-toolbar button:hover { background: #334155; }
+    #mod-desc { flex: 1; border: 0; border-radius: 0; resize: none; min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; }
+    .md-preview { padding: 0.8rem 1rem; overflow-y: auto; flex: 1; font-size: 0.92rem; line-height: 1.5; }
+    .md-preview h2 { font-size: 1.2rem; margin: 0.6rem 0 0.3rem; }
+    .md-preview strong { font-weight: 700; }
+    .md-preview em { font-style: italic; }
+    @media (max-width: 700px) { .md-wrap { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -84,8 +100,22 @@
         <input type="text" id="mod-name" maxlength="120">
         <label>Summary *</label>
         <textarea id="mod-summary" maxlength="256" style="min-height:70px;"></textarea>
-        <label>Description</label>
-        <textarea id="mod-desc"></textarea>
+        <label>Description (Markdown)</label>
+        <div class="md-wrap">
+          <div class="md-pane">
+            <div class="md-toolbar">
+              <button type="button" data-md="**" data-md2="**" title="Bold">B</button>
+              <button type="button" data-md="*" data-md2="*" title="Italic">I</button>
+              <button type="button" data-md="## " title="Heading">H</button>
+              <button type="button" data-md="- " title="List">•</button>
+            </div>
+            <textarea id="mod-desc" placeholder="Write a description in Markdown…"></textarea>
+          </div>
+          <div class="md-pane">
+            <div class="md-toolbar" style="justify-content:space-between;"><span style="font-size:0.78rem; color:#64748b; padding:0 0.5rem;">PREVIEW</span></div>
+            <div class="md-preview" id="md-preview"><span style="color:#94a3b8;">Preview will appear here</span></div>
+          </div>
+        </div>
         <label>Price (USD) *</label>
         <input type="number" id="mod-price" step="0.01" min="0">
         <label>Category</label>

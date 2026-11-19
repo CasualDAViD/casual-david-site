@@ -1,4 +1,5 @@
 // Simple admin: Firebase Auth + Firestore (Storage optional)
+// Markdown description with live preview
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -74,6 +75,33 @@ function showTab(tab) {
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+// Markdown preview
+function updatePreview() {
+  const md = $('mod-desc').value || '';
+  const html = md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n/g, '<br>');
+  $('md-preview').innerHTML = html || '<span style="color:#94a3b8;">Preview will appear here</span>';
+}
+$('mod-desc').addEventListener('input', updatePreview);
+
+document.querySelectorAll('.md-toolbar button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const ta = $('mod-desc');
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const sel = ta.value.slice(start, end);
+    const pre = b.dataset.md || '', post = b.dataset.md2 || '';
+    ta.value = ta.value.slice(0, start) + pre + sel + post + ta.value.slice(end);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = start + pre.length + sel.length;
+    updatePreview();
+  });
+});
 
 async function loadMods() {
   const list = $('admin-mod-list');
@@ -173,6 +201,7 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-summary').value = '';
     $('mod-desc').value = '';
     $('mod-price').value = '';
+    updatePreview();
     loadMods();
   } catch (err) {
     setMsg('mod-msg', err.message);
@@ -195,6 +224,7 @@ async function editMod(id) {
   $('mod-category').value = m.mainCategory || m.category || 'Utility & QoL';
   $('form-title').textContent = 'Edit Mod';
   $('cancel-edit-btn').classList.remove('hidden');
+  updatePreview();
   window.scrollTo(0, 0);
 }
 
@@ -206,6 +236,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-summary').value = '';
   $('mod-desc').value = '';
   $('mod-price').value = '';
+  updatePreview();
 });
 
 async function deleteMod(id) {
