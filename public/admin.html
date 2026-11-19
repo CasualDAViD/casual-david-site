@@ -43,6 +43,7 @@
     .versions-list { margin: 1rem 0; }
     .discount-note { background: #eff6ff; border-left: 4px solid #2563eb; padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; margin-top: 1rem; font-size: 0.9rem; }
     [data-theme="dark"] .discount-note { background: #1e3a5f; color: #bfdbfe; }
+    .wz-upload-btn svg { width: 18px; height: 18px; vertical-align: middle; margin-right: 0.35rem; }
   </style>
 </head>
 <body>
@@ -109,8 +110,14 @@
           <div class="wz-field">
             <label class="wz-label">Logo</label>
             <div class="wz-logo">
-              <div class="wz-logo-box" id="p-logo-box">📦</div>
-              <label class="wz-upload-btn"><input type="file" id="p-logo" accept="image/*"> Upload Image</label>
+              <div class="wz-logo-box" id="p-logo-box">
+                <svg viewBox="0 0 24 24" fill="currentColor" style="width:36px;height:36px;opacity:0.5;"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+              </div>
+              <label class="wz-upload-btn">
+                <input type="file" id="p-logo" accept="image/*">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+                Upload Image
+              </label>
             </div>
           </div>
           <div class="wz-field wz-medium">
@@ -161,7 +168,11 @@
           </div>
           <div class="wz-field">
             <label class="wz-label">Screenshots (optional)</label>
-            <label class="wz-upload-btn"><input type="file" id="p-screens" accept="image/*" multiple> Add screenshots</label>
+            <label class="wz-upload-btn">
+              <input type="file" id="p-screens" accept="image/*" multiple>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+              Add screenshots
+            </label>
             <div class="wz-gallery" id="p-gallery"></div>
           </div>
         </div>
