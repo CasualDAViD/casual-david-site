@@ -21,6 +21,7 @@
     [data-theme="dark"] .summary-total { border-color: #334155; }
     .pay-btn { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 1rem; }
     .pay-btn:hover { background: #1d4ed8; }
+    .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .back { display: inline-flex; align-items: center; gap: 0.4rem; color: #2563eb; text-decoration: none; margin-bottom: 1rem; }
     @media (max-width: 768px) { .checkout-layout { grid-template-columns: 1fr; } }
   </style>
@@ -65,8 +66,7 @@
         <div class="order-item" id="order-item"><span style="color:#64748b;">Loading&hellip;</span></div>
         <h3 style="font-size:1rem; margin-bottom:0.75rem;">Payment</h3>
         <p style="font-size:0.95rem; line-height:1.5; color:#475569;">
-          You will pay on Paystack's secure page, where you can choose card, bank transfer or USSD.
-          Your download unlocks as soon as the payment is confirmed.
+          You will pay on Paystack's secure page (card, bank transfer, USSD). Your download unlocks as soon as payment is confirmed.
         </p>
       </div>
       <div class="checkout-card">
@@ -75,7 +75,7 @@
         <div class="summary-row"><span>Delivery</span><span>Instant</span></div>
         <div class="summary-row summary-total"><span>You pay</span><span id="total"></span></div>
         <p id="charge-note" style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;"></p>
-        <button class="pay-btn" id="pay-btn" disabled>Pay now</button>
+        <button class="pay-btn" id="pay-btn" disabled>Pay with Paystack</button>
         <p id="pay-msg" role="alert" style="font-size:0.9rem; margin-top:0.75rem; text-align:center; color:#dc2626;"></p>
       </div>
     </div>
@@ -92,13 +92,16 @@
   <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script>
+    const PAYSTACK_WORKER = 'https://casualdavid-paystack.okpeidavid7.workers.dev/';
     const params = new URLSearchParams(location.search);
     const modId = params.get('id') || '';
     const payBtn = document.getElementById('pay-btn');
     const payMsg = document.getElementById('pay-msg');
+    let currentMod = null;
+    let currentUser = null;
 
-    function showError(text, html) {
-      if (html) payMsg.innerHTML = html; else payMsg.textContent = text;
+    function showError(text) {
+      payMsg.textContent = text || '';
     }
 
     async function waitForAuth() {
@@ -115,8 +118,8 @@
     }
 
     async function init() {
-      const user = await waitForAuth();
-      if (!user) {
+      currentUser = await waitForAuth();
+      if (!currentUser) {
         location.replace('login.html?next=' + encodeURIComponent(location.pathname + location.search));
         return;
       }
@@ -133,6 +136,7 @@
         document.getElementById('order-item').textContent = 'That mod could not be found.';
         return;
       }
+      currentMod = mod;
 
       const versions = mod.versions || [];
       const price = versions.length ? versions[0].price : (mod.price || 0);
@@ -155,16 +159,36 @@
     }
 
     payBtn.addEventListener('click', async () => {
+      if (!currentMod || !currentUser) return;
       payBtn.disabled = true;
-      payBtn.textContent = 'Redirecting to Paystack\u2026';
+      payBtn.textContent = 'Redirecting to Paystack…';
       showError('');
+
       try {
-        // TODO: connect to Paystack. For now show a message.
-        showError('Payment integration is not fully wired yet. The mod and file are ready.');
-        payBtn.textContent = 'Pay now';
-        payBtn.disabled = false;
+        const versions = currentMod.versions || [];
+        const price = versions.length ? versions[0].price : (currentMod.price || 0);
+
+        const res = await fetch(PAYSTACK_WORKER, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentUser.email,
+            amountUsd: price,
+            modId: currentMod.id,
+            modName: currentMod.name,
+            userId: currentUser.uid,
+            callbackUrl: location.origin + '/order-complete.html'
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.authorization_url) {
+          throw new Error(data.error || 'Could not start payment');
+        }
+
+        location.href = data.authorization_url;
       } catch (err) {
-        payBtn.textContent = 'Pay now';
+        payBtn.textContent = 'Pay with Paystack';
         payBtn.disabled = false;
         showError(err.message);
       }
