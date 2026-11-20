@@ -121,8 +121,7 @@ async function loadAnalytics() {
     purchasesSnap.forEach(d => {
       const p = d.data();
       const amt = Number(p.amount || 0);
-      // Treat large amounts (old Naira conversions) or zero as test for now
-      const isTest = amt === 0 || amt > 1000 || (p.reference && String(p.reference).startsWith('TEST'));
+      const isTest = p.test === true;
       if (modMap[p.modId]) {
         modMap[p.modId].purchases += 1;
         if (isTest) modMap[p.modId].testRevenue += amt;
