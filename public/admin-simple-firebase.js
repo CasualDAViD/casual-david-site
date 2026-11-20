@@ -6,7 +6,7 @@ import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc } fro
 
 const firebaseConfig = {
   apiKey: "AIzaSyBHuDf1Yrbktjv15mFJtTdLd3YA2XCmDUs",
-  authDomain: "casualdavid-site.firebaseapp.com",
+  authDomain: "casualdavid.com.ng",
   projectId: "casualdavid-site",
   storageBucket: "casualdavid-site.firebasestorage.app",
   messagingSenderId: "884094241084",
