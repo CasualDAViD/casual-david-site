@@ -104,16 +104,25 @@
       payMsg.textContent = text || '';
     }
 
-    async function waitForAuth() {
+    // Poll until Firebase Auth is ready, then wait for the first auth state
+    function waitForAuth(maxWait = 4000) {
       return new Promise((resolve) => {
-        if (window.firebaseAuth && window.firebaseAuth.auth) {
-          const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-            unsub();
-            resolve(user);
-          });
-        } else {
-          setTimeout(() => resolve(null), 800);
-        }
+        const start = Date.now();
+        const check = () => {
+          if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
+            const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+              unsub();
+              resolve(user);
+            });
+            return;
+          }
+          if (Date.now() - start > maxWait) {
+            resolve(null);
+            return;
+          }
+          setTimeout(check, 150);
+        };
+        check();
       });
     }
 
@@ -126,7 +135,7 @@
 
       let mod;
       try {
-        if (!window.firebaseMods) await new Promise(r => setTimeout(r, 400));
+        if (!window.firebaseMods) await new Promise(r => setTimeout(r, 500));
         mod = await window.firebaseMods.get(modId);
       } catch (err) {
         document.getElementById('order-item').textContent = err.message || 'Could not load mod.';
