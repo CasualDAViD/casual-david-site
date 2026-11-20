@@ -122,13 +122,15 @@
     </div>
   </footer>
   <script type="module" src="firebase-auth.js"></script>
+  <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script src="theme.js"></script>
   <script src="account.js"></script>
   <script>
     (async function() {
       try {
-        const s = await api('/api/socials');
+        await new Promise(r => setTimeout(r, 300));
+        const s = await (window.firebaseMods && window.firebaseMods.getSocials ? window.firebaseMods.getSocials() : {});
         const card = document.getElementById('community-card');
         if (card && s.discord) card.href = s.discord;
         if (s.youtube) document.getElementById('yt-btn').href = s.youtube;
