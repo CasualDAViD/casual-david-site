@@ -4,7 +4,7 @@ import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gsta
 
 const firebaseConfig = {
   apiKey: "AIzaSyBHuDf1Yrbktjv15mFJtTdLd3YA2XCmDUs",
-  authDomain: "casualdavid-site.firebaseapp.com",
+  authDomain: "casualdavid.com.ng",
   projectId: "casualdavid-site",
   storageBucket: "casualdavid-site.firebasestorage.app",
   messagingSenderId: "884094241084",
