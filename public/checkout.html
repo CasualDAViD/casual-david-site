@@ -170,13 +170,35 @@
         const snap = await getDoc(doc(db, 'promos', code));
         if (!snap.exists()) {
           appliedPromo = null;
-          status.textContent = 'Code expired or not found.';
+          status.textContent = 'Code not found.';
           status.style.color = '#dc2626';
           updateTotal();
           return;
         }
-        appliedPromo = snap.data();
-        status.textContent = appliedPromo.percent + '% off applied!';
+        const p = snap.data();
+        if (p.unlisted) {
+          appliedPromo = null;
+          status.textContent = 'Code expired.';
+          status.style.color = '#dc2626';
+          updateTotal();
+          return;
+        }
+        if (p.expiresAt && Date.now() > p.expiresAt) {
+          appliedPromo = null;
+          status.textContent = 'Code expired.';
+          status.style.color = '#dc2626';
+          updateTotal();
+          return;
+        }
+        if (p.maxUses && (p.uses || 0) >= p.maxUses) {
+          appliedPromo = null;
+          status.textContent = 'Code used up.';
+          status.style.color = '#dc2626';
+          updateTotal();
+          return;
+        }
+        appliedPromo = p;
+        status.textContent = p.percent + '% off applied!';
         status.style.color = '#16a34a';
         updateTotal();
       } catch (err) {
