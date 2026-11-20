@@ -24,5 +24,9 @@ window.firebaseMods = {
   async get(id) {
     const snap = await getDoc(doc(db, 'mods', id));
     return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  },
+  async getSocials() {
+    const snap = await getDoc(doc(db, 'config', 'socials'));
+    return snap.exists() ? snap.data() : {};
   }
 };
