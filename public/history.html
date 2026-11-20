@@ -64,7 +64,7 @@
   <script type="module" src="firebase-auth.js"></script>
   <script type="module" src="firebase-mods.js"></script>
   <script type="module">
-    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
     const box = document.getElementById('orders');
 
@@ -103,13 +103,19 @@
 
       try {
         const db = getFirestore();
-        const snap = await getDocs(collection(db, 'purchases'));
+        // Query only this user's purchases (required by Firestore rules)
+        const q = query(collection(db, 'purchases'), where('userId', '==', user.uid));
+        const snap = await getDocs(q);
 
         const mine = [];
-        snap.forEach(d => {
-          const p = d.data();
-          if ((p.uid || p.userId) === user.uid) mine.push(p);
-        });
+        snap.forEach(d => mine.push(d.data()));
+
+        // Fallback for older docs that used 'uid' instead of 'userId'
+        if (!mine.length) {
+          const q2 = query(collection(db, 'purchases'), where('uid', '==', user.uid));
+          const snap2 = await getDocs(q2);
+          snap2.forEach(d => mine.push(d.data()));
+        }
 
         if (!mine.length) {
           box.innerHTML = '<p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>';
