@@ -398,6 +398,37 @@ body {
 
 .buy-btn:hover { background: #1d4ed8; }
 
+/* Filter bar */
+.filter-bar {
+  grid-column: 1 / -1;
+  text-align: right;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-bar label {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.filter-select {
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #0f172a;
+  font-family: inherit;
+}
+[data-theme="dark"] .filter-select {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
 /* Socials reference style */
 .socials-ref-grid {
   display: grid;
