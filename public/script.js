@@ -2,6 +2,7 @@
 
 let modsCache = [];
 let currentCurrency = 'USD';
+let ownedMods = new Set();
 
 function waitForMods(maxWait = 5000) {
   return new Promise((resolve) => {
@@ -19,6 +20,23 @@ function waitForMods(maxWait = 5000) {
     };
     check();
   });
+}
+
+async function loadOwnedMods() {
+  ownedMods = new Set();
+  if (!window.firebaseAuth || !window.firebaseAuth.auth) return;
+  const user = window.firebaseAuth.auth.currentUser;
+  if (!user) return;
+  try {
+    const { getFirestore, collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+    const db = getFirestore();
+    const q = query(collection(db, 'purchases'), where('userId', '==', user.uid));
+    const snap = await getDocs(q);
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.modId) ownedMods.add(data.modId);
+    });
+  } catch (e) { console.warn('Could not load purchases', e); }
 }
 
 function renderModsGrid() {
@@ -47,6 +65,9 @@ function renderModsGrid() {
     const versions = mod.versions || [];
     const minPrice = versions.length ? Math.min(...versions.map(v => Number(v.price) || 0)) : (mod.price || 0);
     const hasFile = versions.some(v => v.fileUrl) || mod.fileUrl;
+    const owned = ownedMods.has(mod.id);
+    const fileUrl = mod.fileUrl || (versions[0] && versions[0].fileUrl);
+    const fileName = mod.fileName || (versions[0] && versions[0].fileName) || 'download';
     return `
     <div class="mod-card" data-id="${escapeHtml(mod.id)}" style="cursor:pointer;">
       <div class="mod-header">
@@ -60,9 +81,11 @@ function renderModsGrid() {
       </div>
       <p class="mod-desc">${escapeHtml(mod.summary || mod.description || '')}</p>
       <div class="mod-footer">
-        <div class="mod-price">${formatPrice(minPrice, currentCurrency)}${versions.length > 1 ? '+' : ''}</div>
+        <div class="mod-price">${owned ? 'Owned' : formatPrice(minPrice, currentCurrency) + (versions.length > 1 ? '+' : '')}</div>
         ${hasFile
-          ? `<button class="buy-btn" data-buy="${escapeHtml(mod.id)}">Buy</button>`
+          ? (owned
+              ? `<a class="buy-btn" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}" style="text-decoration:none;">Download</a>`
+              : `<button class="buy-btn" data-buy="${escapeHtml(mod.id)}">Buy</button>`)
           : '<button class="buy-btn" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>'}
       </div>
     </div>`;
@@ -70,7 +93,10 @@ function renderModsGrid() {
 
   document.getElementById('currency-select').addEventListener('change', (e) => changeCurrency(e.target.value));
   grid.querySelectorAll('.mod-card').forEach(card => {
-    card.addEventListener('click', () => { location.href = 'product.html?id=' + encodeURIComponent(card.dataset.id); });
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.buy-btn')) return;
+      location.href = 'product.html?id=' + encodeURIComponent(card.dataset.id);
+    });
   });
   grid.querySelectorAll('[data-buy]').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -88,6 +114,7 @@ async function renderMods() {
     const modsApi = await waitForMods();
     if (!modsApi) throw new Error('Mods loader failed to start. Refresh the page.');
     modsCache = await modsApi.list();
+    await loadOwnedMods();
   } catch (err) {
     grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#dc2626;">${escapeHtml(err.message)}</p>`;
     return;
