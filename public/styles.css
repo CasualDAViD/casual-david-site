@@ -1020,3 +1020,18 @@ body { min-height: 100%; display: flex; flex-direction: column; }
 .section:first-of-type {
   margin-top: 1rem;
 }
+
+/* Page transitions */
+body {
+  animation: pageIn 0.25s ease-out;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.page-exit {
+  animation: pageOut 0.18s ease-in forwards;
+}
+@keyframes pageOut {
+  to { opacity: 0; transform: translateY(-4px); }
+}
