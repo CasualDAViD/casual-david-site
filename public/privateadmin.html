@@ -153,6 +153,7 @@
       <button data-tab="socials" data-perm="socials">Social Links</button>
       <button data-tab="analytics" data-perm="analytics">Analytics</button>
       <button data-tab="purchases" data-perm="purchases">Purchases</button>
+      <button data-tab="promo" data-perm="promo">Promo</button>
       <button data-tab="users" data-perm="users" class="hidden">Users</button>
     </div>
 
@@ -302,6 +303,25 @@
         <input type="text" id="purchase-search" placeholder="Search by reference ID, name, email, or mod…" style="margin-bottom:1rem;">
         <div id="purchase-list" class="mod-list"><p class="muted">Loading…</p></div>
         <button class="btn" id="refresh-purchases" style="margin-top:1rem;">Refresh</button>
+      </div>
+    </div>
+
+    <div id="tab-promo" class="hidden">
+      <div class="card">
+        <h2>Create promo code</h2>
+        <label>Code</label>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <input type="text" id="promo-code" placeholder="Enter code or leave blank for random" style="flex:1; text-transform:uppercase;">
+          <button type="button" class="btn" id="gen-code-btn" style="margin:0; white-space:nowrap;">Random</button>
+        </div>
+        <label>Discount %</label>
+        <input type="number" id="promo-percent" min="5" max="100" step="1" value="10" placeholder="5–100">
+        <button class="btn" id="create-promo-btn">Create promo</button>
+        <div id="promo-msg"></div>
+      </div>
+      <div class="card">
+        <h2>Active promos</h2>
+        <div id="promo-list" class="mod-list"><p class="muted">Loading…</p></div>
       </div>
     </div>
 
