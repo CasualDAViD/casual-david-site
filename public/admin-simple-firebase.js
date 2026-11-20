@@ -813,29 +813,28 @@ function randomCode(len = 8) {
 async function loadPromos() {
   const list = $('promo-list');
   if (!list) return;
-  list.innerHTML = '<p class="muted">Loading…</p>';
+  list.innerHTML = '<tr><td colspan="4" class="muted" style="padding:1rem;">Loading…</td></tr>';
   try {
     const snap = await getDocs(collection(db, 'promos'));
     if (snap.empty) {
-      list.innerHTML = '<p class="muted">No promo codes yet.</p>';
+      list.innerHTML = '<tr><td colspan="4" class="muted" style="padding:1rem;">No promo codes yet.</td></tr>';
       return;
     }
     list.innerHTML = snap.docs.map(d => {
       const p = d.data();
-      const created = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '';
-      return `<div class="mod-item" data-code="${d.id}">
-        <div>
-          <strong style="font-family:ui-monospace,monospace; letter-spacing:0.05em;">${d.id}</strong>
-          <div class="muted">${p.percent}% off • created ${created}</div>
-        </div>
-        <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-promo="${d.id}">Delete</button>
-      </div>`;
+      const created = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—';
+      return `<tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:0.7rem 0.5rem; font-family:ui-monospace,monospace; font-weight:600; letter-spacing:0.04em;">${d.id}</td>
+        <td style="padding:0.7rem 0.5rem;">${p.percent}% off</td>
+        <td style="padding:0.7rem 0.5rem; color:#64748b;">${created}</td>
+        <td style="padding:0.7rem 0.5rem; text-align:right;"><button class="btn btn-danger" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-del-promo="${d.id}">Delete</button></td>
+      </tr>`;
     }).join('');
     list.querySelectorAll('[data-del-promo]').forEach(b => {
       b.addEventListener('click', () => deletePromo(b.dataset.delPromo));
     });
   } catch (err) {
-    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load promos') + '</p>';
+    list.innerHTML = '<tr><td colspan="4" class="error" style="padding:1rem;">' + (err.message || 'Failed to load') + '</td></tr>';
   }
 }
 
