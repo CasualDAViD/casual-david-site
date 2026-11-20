@@ -25,6 +25,8 @@ const USERS_WORKER = 'https://casualdavid-admin-users.okpeidavid7.workers.dev/';
 const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Survival', 'Magic', 'Technology', 'Adventure', 'Decoration'];
 const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
 
+const ALL_PERMS = ['delete-mod', 'edit-mod', 'donate', 'socials', 'analytics', 'purchases', 'users', 'mods'];
+
 const $ = (id) => document.getElementById(id);
 
 let allPurchases = [];
@@ -51,7 +53,7 @@ function isMainAdmin(user) {
 async function getAdminProfile(user) {
   if (!user) return null;
   if (isMainAdmin(user)) {
-    return { email: user.email, role: 'main', permissions: ['mods', 'socials', 'analytics', 'purchases', 'users'], mustChangePassword: false };
+    return { email: user.email, role: 'main', permissions: ALL_PERMS, mustChangePassword: false };
   }
   try {
     const snap = await getDoc(doc(db, 'admins', user.uid));
@@ -71,6 +73,14 @@ function applyPermissions() {
     const perm = btn.dataset.perm;
     btn.classList.toggle('hidden', !hasPerm(perm));
   });
+  // Hide donate field if no permission
+  const donateLabel = $('donate-label');
+  const donateInput = $('mod-donate');
+  if (donateLabel && donateInput) {
+    const show = hasPerm('donate');
+    donateLabel.classList.toggle('hidden', !show);
+    donateInput.classList.toggle('hidden', !show);
+  }
 }
 
 function fillSubcategories(type, selected = []) {
@@ -117,7 +127,7 @@ onAuthStateChanged(auth, async (user) => {
   showView('dashboard');
   applyPermissions();
   fillSubcategories('mod');
-  if (hasPerm('mods')) loadMods();
+  if (hasPerm('mods') || hasPerm('edit-mod') || hasPerm('delete-mod')) loadMods();
   if (hasPerm('socials')) loadSocials();
 });
 
@@ -162,7 +172,7 @@ $('change-pw-form').addEventListener('submit', async (e) => {
       showView('dashboard');
       applyPermissions();
       fillSubcategories('mod');
-      if (hasPerm('mods')) loadMods();
+      if (hasPerm('mods') || hasPerm('edit-mod') || hasPerm('delete-mod')) loadMods();
       if (hasPerm('socials')) loadSocials();
     }, 600);
   } catch (err) {
@@ -184,6 +194,17 @@ function showTab(tab) {
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
+function collectPermissions() {
+  const perms = [];
+  if ($('perm-delete-mod')?.checked) perms.push('delete-mod');
+  if ($('perm-edit-mod')?.checked) perms.push('edit-mod');
+  if ($('perm-donate')?.checked) perms.push('donate');
+  if ($('perm-socials')?.checked) perms.push('socials');
+  if ($('perm-analytics')?.checked) perms.push('analytics');
+  if ($('perm-purchases')?.checked) perms.push('purchases');
+  return perms;
+}
+
 async function loadUsers() {
   const list = $('users-list');
   list.innerHTML = '<p class="muted">Loading…</p>';
@@ -198,17 +219,51 @@ async function loadUsers() {
       if (u.role === 'main') return '';
       const perms = (u.permissions || []).join(', ') || 'none';
       const status = u.mustChangePassword ? ' <span class="test-badge">temp password</span>' : '';
-      return `<div class="user-item">
-        <div>
+      return `<div class="user-item" data-uid="${d.id}">
+        <div style="flex:1;">
           <strong>${u.email || d.id}</strong>${status}
           <div class="muted">${perms}</div>
+          <div class="user-perms-edit hidden" id="edit-perms-${d.id}">
+            <div class="perm-grid" style="margin:0.5rem 0;">
+              <label><input type="checkbox" data-perm="delete-mod" ${ (u.permissions||[]).includes('delete-mod') ? 'checked' : '' }> Delete mod</label>
+              <label><input type="checkbox" data-perm="edit-mod" ${ (u.permissions||[]).includes('edit-mod') ? 'checked' : '' }> Edit mod</label>
+              <label><input type="checkbox" data-perm="donate" ${ (u.permissions||[]).includes('donate') ? 'checked' : '' }> Add donation link</label>
+              <label><input type="checkbox" data-perm="socials" ${ (u.permissions||[]).includes('socials') ? 'checked' : '' }> Edit socials</label>
+              <label><input type="checkbox" data-perm="analytics" ${ (u.permissions||[]).includes('analytics') ? 'checked' : '' }> View analytics</label>
+              <label><input type="checkbox" data-perm="purchases" ${ (u.permissions||[]).includes('purchases') ? 'checked' : '' }> View purchases</label>
+            </div>
+            <button class="btn" style="padding:0.4rem 0.8rem;margin:0;" data-save-perms="${d.id}">Save</button>
+            <button class="btn btn-plain" style="padding:0.4rem 0.8rem;margin:0;" data-cancel-perms="${d.id}">Cancel</button>
+          </div>
         </div>
-        <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-user="${d.id}">Remove</button>
+        <div style="display:flex; gap:0.4rem;">
+          <button class="btn" style="padding:0.4rem 0.7rem;margin:0;" data-edit-perms="${d.id}">Edit</button>
+          <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-user="${d.id}">Remove</button>
+        </div>
       </div>`;
     }).filter(Boolean).join('') || '<p class="muted">No sub-users yet.</p>';
+
+    list.querySelectorAll('[data-edit-perms]').forEach(b => b.addEventListener('click', () => {
+      $('edit-perms-' + b.dataset.editPerms).classList.remove('hidden');
+    }));
+    list.querySelectorAll('[data-cancel-perms]').forEach(b => b.addEventListener('click', () => {
+      $('edit-perms-' + b.dataset.cancelPerms).classList.add('hidden');
+    }));
+    list.querySelectorAll('[data-save-perms]').forEach(b => b.addEventListener('click', () => saveUserPerms(b.dataset.savePerms)));
     list.querySelectorAll('[data-del-user]').forEach(b => b.addEventListener('click', () => deleteUser(b.dataset.delUser)));
   } catch (err) {
     list.innerHTML = '<p class="error">' + (err.message || 'Failed to load users') + '</p>';
+  }
+}
+
+async function saveUserPerms(uid) {
+  const box = $('edit-perms-' + uid);
+  const permissions = Array.from(box.querySelectorAll('input:checked')).map(el => el.dataset.perm);
+  try {
+    await setDoc(doc(db, 'admins', uid), { permissions }, { merge: true });
+    loadUsers();
+  } catch (err) {
+    alert(err.message || 'Failed to save permissions');
   }
 }
 
@@ -218,11 +273,7 @@ $('add-user-btn').addEventListener('click', async () => {
     setMsg('user-msg', 'Enter an email.');
     return;
   }
-  const permissions = [];
-  if ($('perm-mods').checked) permissions.push('mods');
-  if ($('perm-socials').checked) permissions.push('socials');
-  if ($('perm-analytics').checked) permissions.push('analytics');
-  if ($('perm-purchases').checked) permissions.push('purchases');
+  const permissions = collectPermissions();
   if (!permissions.length) {
     setMsg('user-msg', 'Select at least one permission.');
     return;
@@ -240,10 +291,7 @@ $('add-user-btn').addEventListener('click', async () => {
     if (!res.ok || !data.success) throw new Error(data.error || 'Failed to create user');
     setMsg('user-msg', data.message || 'User created and email sent!', true);
     $('subuser-email').value = '';
-    $('perm-mods').checked = false;
-    $('perm-socials').checked = false;
-    $('perm-analytics').checked = false;
-    $('perm-purchases').checked = false;
+    document.querySelectorAll('#tab-users input[type="checkbox"]').forEach(el => el.checked = false);
     loadUsers();
   } catch (err) {
     setMsg('user-msg', err.message);
@@ -539,6 +587,8 @@ async function loadMods() {
       list.innerHTML = '<p class="muted">No mods yet.</p>';
       return;
     }
+    const canEdit = hasPerm('edit-mod');
+    const canDelete = hasPerm('delete-mod');
     list.innerHTML = snap.docs.map((d) => {
       const m = d.data();
       const versions = m.versions || [];
@@ -554,8 +604,8 @@ async function loadMods() {
           </div>
         </div>
         <div>
-          <button class="btn" style="padding:0.4rem 0.7rem;margin-right:0.4rem;" data-edit="${d.id}">Edit</button>
-          <button class="btn btn-danger" style="padding:0.4rem 0.7rem;" data-delete="${d.id}">Delete</button>
+          ${canEdit ? `<button class="btn" style="padding:0.4rem 0.7rem;margin-right:0.4rem;" data-edit="${d.id}">Edit</button>` : ''}
+          ${canDelete ? `<button class="btn btn-danger" style="padding:0.4rem 0.7rem;" data-delete="${d.id}">Delete</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -585,7 +635,7 @@ $('save-mod-btn').addEventListener('click', async () => {
   const summary = $('mod-summary').value.trim();
   const description = $('mod-desc').value.trim();
   const thankYou = $('mod-thankyou').value.trim();
-  const donateUrl = $('mod-donate').value.trim();
+  const donateUrl = hasPerm('donate') ? $('mod-donate').value.trim() : undefined;
   const price = parseFloat($('mod-price').value);
   const type = $('mod-type').value;
   const subcategories = getSelectedSubcategories();
@@ -607,7 +657,6 @@ $('save-mod-btn').addEventListener('click', async () => {
       summary,
       description,
       thankYou,
-      donateUrl,
       price,
       type,
       subcategories,
@@ -621,6 +670,7 @@ $('save-mod-btn').addEventListener('click', async () => {
       downloads: 0,
       versions: [{ name: '1.0', price, displayName: '', fileUrl: '', fileName: '' }]
     };
+    if (donateUrl !== undefined) data.donateUrl = donateUrl;
 
     if ($('mod-icon').files[0]) {
       const url = await uploadToR2($('mod-icon').files[0]);
@@ -656,7 +706,7 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-summary').value = '';
     $('mod-desc').value = '';
     $('mod-thankyou').value = '';
-    $('mod-donate').value = '';
+    if ($('mod-donate')) $('mod-donate').value = '';
     $('mod-price').value = '';
     $('mod-type').value = 'mod';
     fillSubcategories('mod');
@@ -673,6 +723,7 @@ $('save-mod-btn').addEventListener('click', async () => {
 });
 
 async function editMod(id) {
+  if (!hasPerm('edit-mod')) return;
   const snap = await getDoc(doc(db, 'mods', id));
   if (!snap.exists()) return;
   const m = snap.data();
@@ -683,7 +734,7 @@ async function editMod(id) {
   $('mod-summary').value = m.summary || '';
   $('mod-desc').value = m.description || '';
   $('mod-thankyou').value = m.thankYou || '';
-  $('mod-donate').value = m.donateUrl || '';
+  if ($('mod-donate')) $('mod-donate').value = m.donateUrl || '';
   $('mod-price').value = price;
   $('mod-type').value = m.type || 'mod';
   const subs = Array.isArray(m.subcategories) ? m.subcategories : (m.subcategory ? [m.subcategory] : (m.mainCategory ? [m.mainCategory] : []));
@@ -704,7 +755,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-summary').value = '';
   $('mod-desc').value = '';
   $('mod-thankyou').value = '';
-  $('mod-donate').value = '';
+  if ($('mod-donate')) $('mod-donate').value = '';
   $('mod-price').value = '';
   $('mod-type').value = 'mod';
   fillSubcategories('mod');
@@ -715,6 +766,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
 });
 
 async function deleteMod(id) {
+  if (!hasPerm('delete-mod')) return;
   if (!confirm('Delete this mod?')) return;
   await deleteDoc(doc(db, 'mods', id));
   loadMods();
