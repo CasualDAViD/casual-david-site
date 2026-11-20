@@ -864,6 +864,18 @@ body {
   color: #f1f5f9;
 }
 [data-theme="dark"] .footer { background: #1e293b; border-color: #334155; }
+[data-theme="dark"] .mod-cat {
+  background: #312e81 !important;
+  color: #c7d2fe !important;
+}
+[data-theme="dark"] .mod-desc {
+  color: #cbd5e1;
+}
+[data-theme="dark"] .sc-handle,
+[data-theme="dark"] .sc-label,
+[data-theme="dark"] .social-card-ref p {
+  color: #94a3b8;
+}
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f172a;
@@ -902,128 +914,6 @@ body {
 [data-theme="dark"] .mod-card,
 [data-theme="dark"] .social-card-ref,
 [data-theme="dark"] .gallery,
-[data-theme="dark"] .product-info,
-[data-theme="dark"] .checkout-card {
-  background: rgba(30, 41, 59, 0.8) !important;
-  border-color: rgba(255,255,255,0.1) !important;
-  color: #f1f5f9;
+[data-theme="dark"] .product-info {
+  background: rgba(30,41,59,0.85) !important;
 }
-[data-theme="dark"] .mod-desc,
-[data-theme="dark"] .desc,
-[data-theme="dark"] .subtitle { color: #cbd5e1 !important; }
-
-/* Dark mode arrows */
-[data-theme="dark"] .gc-arrow {
-  background: #1e293b !important;
-  border-color: #475569 !important;
-  color: #e2e8f0 !important;
-}
-
-/* Standalone clear arrows */
-.gc-arrow {
-  background: none !important;
-  border: none !important;
-  width: auto !important;
-  height: auto !important;
-  border-radius: 0 !important;
-  font-size: 1.1rem !important;
-  color: #64748b !important;
-  box-shadow: none !important;
-}
-[data-theme="dark"] .gc-arrow {
-  background: none !important;
-  border: none !important;
-  color: #94a3b8 !important;
-}
-
-/* Centered socials under top buttons */
-.socials-ref-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-}
-.socials-ref-grid .social-card-ref:nth-child(4) {
-  grid-column: 1 / 2;
-  justify-self: end;
-  width: 100%;
-  max-width: 320px;
-}
-.socials-ref-grid .social-card-ref:nth-child(5) {
-  grid-column: 2 / 3;
-  justify-self: start;
-  width: 100%;
-  max-width: 320px;
-}
-@media (max-width: 768px) {
-  .socials-ref-grid { grid-template-columns: 1fr; }
-  .socials-ref-grid .social-card-ref:nth-child(4),
-  .socials-ref-grid .social-card-ref:nth-child(5) {
-    grid-column: auto;
-    justify-self: stretch;
-    max-width: none;
-  }
-}
-
-/* Dark mode outline buttons */
-[data-theme="dark"] .btn-outline {
-  background: #1e293b !important;
-  color: #e2e8f0 !important;
-  border-color: #475569 !important;
-}
-[data-theme="dark"] .btn-outline:hover {
-  background: #334155 !important;
-}
-
-/* Glass buttons on about page */
-.btn-outline {
-  background: rgba(255,255,255,0.15) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.25) !important;
-  color: inherit !important;
-}
-[data-theme="dark"] .btn-outline {
-  background: rgba(255,255,255,0.08) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
-  color: #e2e8f0 !important;
-}
-[data-theme="dark"] .btn-outline:hover {
-  background: rgba(255,255,255,0.15) !important;
-}
-
-/* Mobile hamburger */
-.hamburger { display: none; background: none; border: none; cursor: pointer; padding: 0.4rem; }
-.mobile-menu { display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 280px; background: white; z-index: 9999; box-shadow: -4px 0 20px rgb(0 0 0 / 0.1); padding: 1.5rem; flex-direction: column; gap: 0.75rem; }
-[data-theme="dark"] .mobile-menu { background: #1e293b; }
-.mobile-menu a { display: block; padding: 0.75rem 1rem; border-radius: 10px; text-decoration: none; color: inherit; font-weight: 500; }
-.mobile-menu a:hover { background: #f1f5f9; }
-[data-theme="dark"] .mobile-menu a:hover { background: #334155; }
-.mobile-menu.open { display: flex; }
-.menu-overlay { display: none; position: fixed; inset: 0; background: rgb(0 0 0 / 0.4); z-index: 9998; }
-.menu-overlay.open { display: block; }
-
-@media (max-width: 768px) {
-  .nav-pill { display: none; }
-  .hamburger { display: block; }
-  .header-inner { padding: 0.5rem 1rem; }
-  .logo-text .tag { display: none; }
-  .hero-content h1 { font-size: 2.2rem; }
-  .glass-cards { grid-template-columns: 1fr; }
-  .socials-ref-grid { grid-template-columns: 1fr; }
-  .header-right .btn-sm { display: none !important; }
-}
-
-.mobile-menu button.menu-signin {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
-  background: none;
-  border: none;
-  font-weight: 500;
-  color: inherit;
-  cursor: pointer;
-  font-size: 1rem;
-}
-.mobile-menu button.menu-signin:hover { background: #f1f5f9; }
-[data-theme="dark"] .mobile-menu button.menu-signin:hover { background: #334155; }
