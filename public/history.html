@@ -63,7 +63,7 @@
   <script type="module" src="firebase-auth.js"></script>
   <script type="module" src="firebase-mods.js"></script>
   <script type="module">
-    import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
     const box = document.getElementById('orders');
 
@@ -73,21 +73,17 @@
         const start = Date.now();
         const check = () => {
           if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
-            // Give Firebase a moment to restore the persisted session
             setTimeout(() => {
               const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-                // If we get a user, resolve immediately
                 if (user) {
                   unsub();
                   resolve(user);
                   return;
                 }
-                // If no user yet, wait a bit more in case session is still restoring
-                if (Date.now() - start < 2500) {
-                  return;
+                if (Date.now() - start > 3000) {
+                  unsub();
+                  resolve(null);
                 }
-                unsub();
-                resolve(null);
               });
             }, 300);
           } else if (attempts < 40) {
@@ -110,31 +106,39 @@
 
       try {
         const db = getFirestore();
-        const q = query(collection(db, 'purchases'), where('uid', '==', user.uid));
-        const snap = await getDocs(q);
+        const snap = await getDocs(collection(db, 'purchases'));
 
-        if (snap.empty) {
+        const mine = [];
+        snap.forEach(d => {
+          const p = d.data();
+          const pid = p.uid || p.userId;
+          if (pid === user.uid) mine.push({ id: d.id, ...p });
+        });
+
+        if (!mine.length) {
           box.innerHTML = '<p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>';
           return;
         }
 
         const rows = [];
-        for (const d of snap.docs) {
-          const p = d.data();
+        for (const p of mine) {
           let mod = { name: 'Mod', icon: '', fileUrl: '', fileName: 'download' };
           try {
             const modSnap = await getDoc(doc(db, 'mods', p.modId));
             if (modSnap.exists()) mod = modSnap.data();
           } catch (e) {}
 
-          const date = p.paidAt ? new Date(p.paidAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          const ts = p.paidAt || p.purchasedAt;
+          const date = ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          const amount = Number(p.amount || 0);
+
           rows.push(`
             <div class="order-row">
               <div class="order-icon">${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>📦</span>'}</div>
               <div style="flex:1; min-width:180px;">
                 <strong>${escapeHtml(mod.name || 'Mod')}</strong>
                 <div style="font-size:0.85rem; color:#64748b;">
-                  ${date} • $${Number(p.amount || 0).toFixed(2)}
+                  ${date} • $${amount.toFixed(2)}
                 </div>
               </div>
               ${mod.fileUrl
