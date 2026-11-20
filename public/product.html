@@ -32,6 +32,7 @@
     .buy-now:hover { background: #1d4ed8; }
     .desc { margin-top: 1.5rem; color: #475569; line-height: 1.6; }
     [data-theme="dark"] .desc { color: #cbd5e1; }
+    .desc a { color: #2563eb; text-decoration: underline; }
     .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; }
     .lightbox.open { display: flex; }
     .lightbox-inner { position: relative; max-width: 90vw; max-height: 85vh; }
@@ -108,13 +109,16 @@
 
     function renderDescription(md) {
       if (!md) return '';
-      return md
+      let html = md
         .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.+?)\*/g, '<em>$1</em>')
         .replace(/^## (.+)$/gm, '<h2>$1</h2>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/\n/g, '<br>');
+      // Make bare URLs clickable
+      html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+      return html;
     }
 
     function getCategoryLabel(mod) {
