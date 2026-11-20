@@ -25,7 +25,7 @@ const USERS_WORKER = 'https://casualdavid-admin-users.okpeidavid7.workers.dev/';
 const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Survival', 'Magic', 'Technology', 'Adventure', 'Decoration'];
 const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
 
-const ALL_PERMS = ['delete-mod', 'edit-mod', 'donate', 'socials', 'analytics', 'purchases', 'users', 'mods'];
+const ALL_PERMS = ['delete-mod', 'edit-mod', 'donate', 'socials', 'analytics', 'purchases', 'users', 'mods', 'promo'];
 const MOD_PERMS = ['mods', 'edit-mod', 'delete-mod', 'donate'];
 
 const $ = (id) => document.getElementById(id);
@@ -194,11 +194,12 @@ $('logout-btn').addEventListener('click', () => signOut(auth));
 function showTab(tab) {
   if (tab === 'mods' && !hasAnyModPerm()) return;
   if (tab !== 'mods' && !hasPerm(tab)) return;
-  ['mods', 'socials', 'analytics', 'purchases', 'users'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['mods', 'socials', 'analytics', 'purchases', 'users', 'promo'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'analytics') loadAnalytics();
   if (tab === 'purchases') loadPurchases();
   if (tab === 'users') loadUsers();
+  if (tab === 'promo') loadPromos();
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -800,3 +801,85 @@ $('save-socials-btn').addEventListener('click', async () => {
   await setDoc(doc(db, 'config', 'socials'), data);
   setMsg('social-msg', 'Social links saved!', true);
 });
+
+// ---- Promos ----
+function randomCode(len = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out = '';
+  for (let i = 0; i < len; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+async function loadPromos() {
+  const list = $('promo-list');
+  if (!list) return;
+  list.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const snap = await getDocs(collection(db, 'promos'));
+    if (snap.empty) {
+      list.innerHTML = '<p class="muted">No promo codes yet.</p>';
+      return;
+    }
+    list.innerHTML = snap.docs.map(d => {
+      const p = d.data();
+      const created = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '';
+      return `<div class="mod-item" data-code="${d.id}">
+        <div>
+          <strong style="font-family:ui-monospace,monospace; letter-spacing:0.05em;">${d.id}</strong>
+          <div class="muted">${p.percent}% off • created ${created}</div>
+        </div>
+        <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-promo="${d.id}">Delete</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-del-promo]').forEach(b => {
+      b.addEventListener('click', () => deletePromo(b.dataset.delPromo));
+    });
+  } catch (err) {
+    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load promos') + '</p>';
+  }
+}
+
+async function deletePromo(code) {
+  if (!confirm('Delete promo code ' + code + '? It will stop working immediately.')) return;
+  try {
+    await deleteDoc(doc(db, 'promos', code));
+    loadPromos();
+  } catch (err) {
+    alert(err.message || 'Failed to delete');
+  }
+}
+
+if ($('gen-code-btn')) {
+  $('gen-code-btn').addEventListener('click', () => {
+    $('promo-code').value = randomCode();
+  });
+}
+
+if ($('create-promo-btn')) {
+  $('create-promo-btn').addEventListener('click', async () => {
+    let code = ($('promo-code').value || '').trim().toUpperCase();
+    if (!code) code = randomCode();
+    const percent = Number($('promo-percent').value);
+    if (!percent || percent < 5 || percent > 100) {
+      setMsg('promo-msg', 'Discount must be between 5 and 100.');
+      return;
+    }
+    const btn = $('create-promo-btn');
+    btn.disabled = true;
+    setMsg('promo-msg', 'Creating…', true);
+    try {
+      await setDoc(doc(db, 'promos', code), {
+        code,
+        percent,
+        createdAt: Date.now()
+      });
+      setMsg('promo-msg', 'Promo ' + code + ' created (' + percent + '% off).', true);
+      $('promo-code').value = '';
+      loadPromos();
+    } catch (err) {
+      setMsg('promo-msg', err.message || 'Failed to create promo');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
