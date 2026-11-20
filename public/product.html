@@ -176,6 +176,8 @@
     }
 
     async function trackView(modId) {
+      // Only count if user is signed in
+      if (!window.firebaseAuth || !window.firebaseAuth.auth || !window.firebaseAuth.auth.currentUser) return;
       try {
         const db = getFirestore();
         await updateDoc(doc(db, 'mods', modId), { views: increment(1) });
@@ -260,7 +262,7 @@
         return;
       }
 
-      // Track view (once per session per mod)
+      // Track view once per signed-in user per session
       const viewKey = 'viewed_' + id;
       if (!sessionStorage.getItem(viewKey)) {
         trackView(id);
