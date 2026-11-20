@@ -836,7 +836,10 @@ async function loadPromos() {
         ? `<button class="btn" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-rel-promo="${d.id}">Relist</button>`
         : `<button class="btn btn-plain" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-unlist-promo="${d.id}">Unlist</button>`;
       return `<tr style="border-bottom:1px solid #e2e8f0;">
-        <td style="padding:0.7rem 0.5rem; font-family:ui-monospace,monospace; font-weight:600; letter-spacing:0.04em;">${d.id}</td>
+        <td style="padding:0.7rem 0.5rem; font-family:ui-monospace,monospace; font-weight:600; letter-spacing:0.04em;">
+          ${d.id}
+          <button class="btn btn-plain" style="padding:0.2rem 0.5rem; margin-left:0.4rem; font-size:0.75rem;" data-copy="${d.id}" title="Copy">Copy</button>
+        </td>
         <td style="padding:0.7rem 0.5rem;">${p.percent}% off</td>
         <td style="padding:0.7rem 0.5rem;">${uses}</td>
         <td style="padding:0.7rem 0.5rem; color:#64748b;">${expires}</td>
@@ -846,6 +849,14 @@ async function loadPromos() {
     }).join('');
     list.querySelectorAll('[data-unlist-promo]').forEach(b => b.addEventListener('click', () => setPromoListed(b.dataset.unlistPromo, true)));
     list.querySelectorAll('[data-rel-promo]').forEach(b => b.addEventListener('click', () => setPromoListed(b.dataset.relPromo, false)));
+    list.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(b.dataset.copy);
+        const orig = b.textContent;
+        b.textContent = 'Copied';
+        setTimeout(() => b.textContent = orig, 1200);
+      } catch (e) { alert('Copy failed'); }
+    }));
   } catch (err) {
     list.innerHTML = '<tr><td colspan="6" class="error" style="padding:1rem;">' + (err.message || 'Failed to load') + '</td></tr>';
   }
