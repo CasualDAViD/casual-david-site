@@ -998,3 +998,14 @@ body {
 [data-theme="dark"] .product-info {
   background: rgba(30,41,59,0.85) !important;
 }
+
+/* Dark mode header icons */
+[data-theme="dark"] #theme-btn,
+[data-theme="dark"] #account-btn {
+  color: #f1f5f9;
+  border-color: #475569;
+}
+[data-theme="dark"] #theme-btn svg,
+[data-theme="dark"] #account-btn svg {
+  fill: #f1f5f9;
+}
