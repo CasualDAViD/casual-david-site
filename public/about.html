@@ -88,14 +88,29 @@
 
     async function loadSocials() {
       try {
+        // Wait a moment for Firebase to initialize
+        await new Promise(r => setTimeout(r, 300));
         const db = getFirestore();
         const snap = await getDoc(doc(db, 'config', 'socials'));
         if (!snap.exists()) return;
         const s = snap.data();
-        if (s.personalDiscord) document.getElementById('personal-discord').href = s.personalDiscord;
-        if (s.email) document.getElementById('email-btn').href = 'mailto:' + s.email;
-        if (s.donate) document.getElementById('donate-btn').href = s.donate;
-      } catch (e) {}
+
+        const donate = s.donate || s.donateUrl || '';
+        if (donate) {
+          const btn = document.getElementById('donate-btn');
+          if (btn) btn.href = donate;
+        }
+        if (s.personalDiscord) {
+          const btn = document.getElementById('personal-discord');
+          if (btn) btn.href = s.personalDiscord;
+        }
+        if (s.email) {
+          const btn = document.getElementById('email-btn');
+          if (btn) btn.href = 'mailto:' + s.email;
+        }
+      } catch (e) {
+        console.warn('Could not load socials', e);
+      }
     }
 
     loadSocials();
