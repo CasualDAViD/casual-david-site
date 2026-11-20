@@ -48,11 +48,10 @@
     <a href="mods.html">Shop</a>
   </div>
 
-
   <section class="section">
     <div class="container" style="max-width:720px;">
       <h1 style="margin-bottom:1.5rem;">Purchase history</h1>
-      <div id="orders"><p style="color:var(--text-muted);">Loading&hellip;</p></div>
+      <div id="orders"><p style="color:var(--text-muted);">Loading…</p></div>
     </div>
   </section>
 
@@ -62,38 +61,79 @@
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
-  <script src="api.js"></script>
-  <script>
-    (async function () {
-      const box = document.getElementById('orders');
-      const user = await getMe();
-      if (!user) { location.replace('login.html?next=' + encodeURIComponent('/history.html')); return; }
-      let orders;
+
+  <script type="module" src="firebase-auth.js"></script>
+  <script type="module" src="firebase-mods.js"></script>
+  <script type="module">
+    import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    const box = document.getElementById('orders');
+
+    function waitForAuth() {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (window.firebaseAuth && window.firebaseAuth.auth) {
+            const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+              unsub();
+              resolve(user);
+            });
+          } else {
+            setTimeout(check, 100);
+          }
+        };
+        check();
+      });
+    }
+
+    async function load() {
+      const user = await waitForAuth();
+      if (!user) {
+        location.replace('login.html?next=' + encodeURIComponent('/history.html'));
+        return;
+      }
+
       try {
-        orders = (await api('/api/orders')).orders;
+        const db = getFirestore();
+        const q = query(collection(db, 'purchases'), where('uid', '==', user.uid));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+          box.innerHTML = '<p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>';
+          return;
+        }
+
+        const rows = [];
+        for (const d of snap.docs) {
+          const p = d.data();
+          let mod = { name: 'Mod', icon: '', fileUrl: '', fileName: 'download' };
+          try {
+            const modSnap = await getDoc(doc(db, 'mods', p.modId));
+            if (modSnap.exists()) mod = modSnap.data();
+          } catch (e) {}
+
+          const date = p.paidAt ? new Date(p.paidAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          rows.push(`
+            <div class="order-row">
+              <div class="order-icon">${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>📦</span>'}</div>
+              <div style="flex:1; min-width:180px;">
+                <strong>${escapeHtml(mod.name || 'Mod')}</strong>
+                <div style="font-size:0.85rem; color:#64748b;">
+                  ${date} • $${Number(p.amount || 0).toFixed(2)}
+                </div>
+              </div>
+              ${mod.fileUrl
+                ? `<a class="buy-btn" style="text-decoration:none; display:inline-block;" href="${escapeHtml(mod.fileUrl)}" download="${escapeHtml(mod.fileName || 'download')}">Download</a>`
+                : '<span style="font-size:0.85rem; color:#64748b;">File coming soon</span>'}
+            </div>
+          `);
+        }
+        box.innerHTML = rows.join('');
       } catch (err) {
         box.innerHTML = '<p style="color:#dc2626;">' + escapeHtml(err.message) + '</p>';
-        return;
       }
-      if (orders.length === 0) {
-        box.innerHTML = '<p style="color:var(--text-muted);">No purchases yet. When you buy a mod, it will show up here.</p>';
-        return;
-      }
-      box.innerHTML = orders.map(o => `
-        <div class="order-row">
-          <div class="order-icon">${o.mod.icon ? `<img src="${escapeHtml(o.mod.icon)}" alt="">` : '<span>\u{1F4E6}</span>'}</div>
-          <div style="flex:1; min-width:180px;">
-            <strong>${escapeHtml(o.mod.name)}</strong>
-            <div style="font-size:0.85rem; color:#64748b;">
-              ${new Date(o.paidAt * 1000).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
-              \u2022 ${formatKobo(o.amountKobo)} \u2022 Ref ${escapeHtml(o.reference)}
-            </div>
-          </div>
-          ${o.mod.downloadable
-            ? `<a class="buy-btn" style="text-decoration:none; display:inline-block;" href="/api/downloads/${encodeURIComponent(o.mod.id)}">Download</a>`
-            : '<span style="font-size:0.85rem; color:#64748b;">File coming soon</span>'}
-        </div>`).join('');
-    })();
+    }
+
+    load();
   </script>
   <script src="theme.js"></script>
   <script src="account.js"></script>
