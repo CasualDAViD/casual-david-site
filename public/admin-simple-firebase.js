@@ -57,6 +57,12 @@ function getSelectedSubcategories() {
   return Array.from($('mod-subcategory').querySelectorAll('input:checked')).map(el => el.value);
 }
 
+function showScreenshotPreview(urls) {
+  const box = $('screenshot-preview');
+  if (!box) return;
+  box.innerHTML = (urls || []).map(url => `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;">`).join('');
+}
+
 $('mod-type').addEventListener('change', () => fillSubcategories($('mod-type').value));
 
 onAuthStateChanged(auth, (user) => {
@@ -216,6 +222,17 @@ $('save-mod-btn').addEventListener('click', async () => {
       const url = await uploadToR2($('mod-icon').files[0]);
       if (url) data.icon = url;
     }
+
+    const screenshotFiles = $('mod-screenshots').files;
+    if (screenshotFiles && screenshotFiles.length) {
+      const urls = [];
+      for (const file of screenshotFiles) {
+        const url = await uploadToR2(file);
+        if (url) urls.push(url);
+      }
+      if (urls.length) data.screenshots = urls;
+    }
+
     if ($('mod-file').files[0]) {
       const url = await uploadToR2($('mod-file').files[0]);
       if (url) {
@@ -240,6 +257,8 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-type').value = 'mod';
     fillSubcategories('mod');
     $('mod-environment').value = 'client';
+    $('mod-screenshots').value = '';
+    showScreenshotPreview([]);
     updatePreview();
     loadMods();
   } catch (err) {
@@ -266,6 +285,7 @@ async function editMod(id) {
   const subs = Array.isArray(m.subcategories) ? m.subcategories : (m.subcategory ? [m.subcategory] : (m.mainCategory ? [m.mainCategory] : []));
   fillSubcategories(m.type || 'mod', subs);
   $('mod-environment').value = m.environment || 'client';
+  showScreenshotPreview(m.screenshots || []);
   $('form-title').textContent = 'Edit Mod';
   $('cancel-edit-btn').classList.remove('hidden');
   updatePreview();
@@ -285,6 +305,8 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-type').value = 'mod';
   fillSubcategories('mod');
   $('mod-environment').value = 'client';
+  $('mod-screenshots').value = '';
+  showScreenshotPreview([]);
   updatePreview();
 });
 
