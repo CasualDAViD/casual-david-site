@@ -120,13 +120,18 @@
         <textarea id="mod-thankyou" placeholder="Thank you for supporting the mod! Click the download button to get your file." style="min-height:80px;"></textarea>
         <label>Price (USD) *</label>
         <input type="number" id="mod-price" step="0.01" min="0">
-        <label>Category</label>
-        <select id="mod-category">
-          <option>Utility & QoL</option>
-          <option>Performance</option>
-          <option>Building</option>
-          <option>Survival</option>
-          <option>Mod</option>
+        <label>Type *</label>
+        <select id="mod-type">
+          <option value="mod">Mod</option>
+          <option value="plugin">Plugin</option>
+        </select>
+        <label>Subcategory</label>
+        <select id="mod-subcategory"></select>
+        <label>Environment</label>
+        <select id="mod-environment">
+          <option value="client">Client</option>
+          <option value="server">Server</option>
+          <option value="both">Client and Server</option>
         </select>
         <label>Logo (optional)</label>
         <input type="file" id="mod-icon" accept="image/*">
