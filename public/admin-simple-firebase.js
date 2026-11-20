@@ -41,10 +41,20 @@ function isAdmin(user) {
   return user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
 }
 
-function fillSubcategories(type, selected) {
-  const sel = $('mod-subcategory');
+function fillSubcategories(type, selected = []) {
+  const container = $('mod-subcategory');
   const list = type === 'plugin' ? PLUGIN_SUBS : MOD_SUBS;
-  sel.innerHTML = list.map(s => `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`).join('');
+  const selectedArr = Array.isArray(selected) ? selected : (selected ? [selected] : []);
+  container.innerHTML = list.map(s => `
+    <label>
+      <input type="checkbox" value="${s}" ${selectedArr.includes(s) ? 'checked' : ''}>
+      ${s}
+    </label>
+  `).join('');
+}
+
+function getSelectedSubcategories() {
+  return Array.from($('mod-subcategory').querySelectorAll('input:checked')).map(el => el.value);
 }
 
 $('mod-type').addEventListener('change', () => fillSubcategories($('mod-type').value));
@@ -126,13 +136,13 @@ async function loadMods() {
       const versions = m.versions || [];
       const price = versions.length ? versions[0].price : (m.price || 0);
       const type = m.type || 'mod';
-      const sub = m.subcategory || m.mainCategory || '';
+      const subs = Array.isArray(m.subcategories) ? m.subcategories.join(', ') : (m.subcategory || m.mainCategory || '');
       return `<div class="mod-item">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           ${m.icon ? `<img src="${m.icon}" class="preview-img">` : '<div class="preview-img"></div>'}
           <div>
             <strong>${m.name || ''}</strong>
-            <div class="muted">$${Number(price).toFixed(2)} • ${type} / ${sub}</div>
+            <div class="muted">$${Number(price).toFixed(2)} • ${type} / ${subs}</div>
           </div>
         </div>
         <div>
@@ -169,7 +179,7 @@ $('save-mod-btn').addEventListener('click', async () => {
   const thankYou = $('mod-thankyou').value.trim();
   const price = parseFloat($('mod-price').value);
   const type = $('mod-type').value;
-  const subcategory = $('mod-subcategory').value;
+  const subcategories = getSelectedSubcategories();
   const environment = $('mod-environment').value;
   const editId = $('edit-id').value || crypto.randomUUID();
 
@@ -190,9 +200,10 @@ $('save-mod-btn').addEventListener('click', async () => {
       thankYou,
       price,
       type,
-      subcategory,
+      subcategories,
+      subcategory: subcategories[0] || '',
       environment,
-      mainCategory: subcategory,
+      mainCategory: subcategories[0] || '',
       category: type,
       updatedAt: Date.now(),
       unlisted: false,
@@ -248,7 +259,8 @@ async function editMod(id) {
   $('mod-thankyou').value = m.thankYou || '';
   $('mod-price').value = price;
   $('mod-type').value = m.type || 'mod';
-  fillSubcategories(m.type || 'mod', m.subcategory || m.mainCategory || '');
+  const subs = Array.isArray(m.subcategories) ? m.subcategories : (m.subcategory ? [m.subcategory] : (m.mainCategory ? [m.mainCategory] : []));
+  fillSubcategories(m.type || 'mod', subs);
   $('mod-environment').value = m.environment || 'client';
   $('form-title').textContent = 'Edit Mod';
   $('cancel-edit-btn').classList.remove('hidden');
