@@ -48,6 +48,13 @@ function getCategoryLabel(mod) {
   return subs ? `${type} • ${subs}` : type;
 }
 
+function formatDownloads(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K';
+  return String(n);
+}
+
 function renderModsGrid() {
   const grid = document.getElementById('mods-grid');
   if (!grid) return;
@@ -89,6 +96,7 @@ function renderModsGrid() {
     const owned = ownedMods.has(mod.id);
     const fileUrl = mod.fileUrl || (versions[0] && versions[0].fileUrl);
     const fileName = mod.fileName || (versions[0] && versions[0].fileName) || 'download';
+    const downloads = formatDownloads(mod.downloads || 0);
     return `
     <div class="mod-card" data-id="${escapeHtml(mod.id)}" style="cursor:pointer;">
       <div class="mod-header">
@@ -101,11 +109,15 @@ function renderModsGrid() {
         </div>
       </div>
       <p class="mod-desc">${escapeHtml(mod.summary || mod.description || '')}</p>
+      <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; color:#64748b; margin: 0.4rem 0;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>${downloads}</span>
+      </div>
       <div class="mod-footer">
         <div class="mod-price">${owned ? 'Owned' : formatPrice(minPrice, currentCurrency) + (versions.length > 1 ? '+' : '')}</div>
         ${hasFile
           ? (owned
-              ? `<a class="buy-btn" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}" style="text-decoration:none;">Download</a>`
+              ? `<a class="buy-btn" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}" data-dl="${escapeHtml(mod.id)}" style="text-decoration:none;">Download</a>`
               : `<button class="buy-btn" data-buy="${escapeHtml(mod.id)}">Buy</button>`)
           : '<button class="buy-btn" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>'}
       </div>
@@ -127,6 +139,16 @@ function renderModsGrid() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       location.href = 'checkout.html?id=' + encodeURIComponent(btn.dataset.buy);
+    });
+  });
+  grid.querySelectorAll('[data-dl]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const modId = btn.dataset.dl;
+      try {
+        const { getFirestore, doc, updateDoc, increment } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const db = getFirestore();
+        await updateDoc(doc(db, 'mods', modId), { downloads: increment(1) });
+      } catch (err) { console.warn('Could not count download', err); }
     });
   });
 }
