@@ -22,8 +22,27 @@
     .gallery-thumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
     .gallery-thumbs img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
     .gallery-thumbs img.active { border-color: #2563eb; }
-    .donate-btn { display: inline-flex; align-items: center; gap: 0.4rem; background: #ff5e5b; color: white; padding: 0.55rem 1rem; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-top: 0.5rem; }
-    .donate-btn:hover { background: #e54d4a; }
+    .donate-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #f1f5f9;
+      color: #475569;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      border: 1px solid #e2e8f0;
+    }
+    .donate-btn:hover { background: #e2e8f0; }
+    [data-theme="dark"] .donate-btn {
+      background: #334155;
+      color: #e2e8f0;
+      border-color: #475569;
+    }
+    [data-theme="dark"] .donate-btn:hover { background: #475569; }
     .product-info { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.5rem; }
     [data-theme="dark"] .product-info { background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
     .info-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
@@ -199,7 +218,7 @@
             <div class="gallery-thumbs" id="thumbs">
               ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" onclick="goTo(${i})" alt="">`).join('')}
             </div>
-            ${donate ? `<a class="donate-btn" href="${escapeHtml(donate)}" target="_blank" rel="noopener">☕ Donate</a>` : ''}
+            ${donate ? `<a class="donate-btn" href="${escapeHtml(donate)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Donate</a>` : ''}
           </div>
           <div class="product-info">
             <div class="info-header">
