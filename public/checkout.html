@@ -73,6 +73,15 @@
         <h2>Order summary</h2>
         <div class="summary-row"><span>Order price</span><span id="price"></span></div>
         <div class="summary-row"><span>Delivery</span><span>Instant</span></div>
+        <div style="margin:0.75rem 0;">
+          <label style="font-size:0.85rem; font-weight:600; margin-bottom:0.3rem; display:block;">Promo code</label>
+          <div style="display:flex; gap:0.4rem;">
+            <input type="text" id="promo-input" placeholder="Enter code" style="flex:1; padding:0.5rem 0.7rem; border-radius:8px; border:1px solid #cbd5e1; text-transform:uppercase;">
+            <button type="button" id="apply-promo" class="btn" style="margin:0; padding:0.5rem 0.9rem;">Apply</button>
+          </div>
+          <p id="promo-status" style="font-size:0.8rem; margin-top:0.3rem; min-height:1.1em;"></p>
+        </div>
+        <div class="summary-row" id="discount-row" style="display:none;"><span>Discount</span><span id="discount-amt"></span></div>
         <div class="summary-row summary-total"><span>You pay</span><span id="total"></span></div>
         <p id="charge-note" style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;"></p>
         <button class="pay-btn" id="pay-btn" disabled>Pay with Paystack</button>
@@ -99,6 +108,8 @@
     const payMsg = document.getElementById('pay-msg');
     let currentMod = null;
     let currentUser = null;
+    let appliedPromo = null;
+    let basePrice = 0;
 
     function showError(text) {
       payMsg.textContent = text || '';
@@ -126,6 +137,54 @@
       });
     }
 
+    function updateTotal() {
+      const discount = appliedPromo ? basePrice * (appliedPromo.percent / 100) : 0;
+      const finalPrice = Math.max(0, basePrice - discount);
+      const currency = getCurrency();
+      document.getElementById('price').textContent = formatPrice(basePrice, currency);
+      const discountRow = document.getElementById('discount-row');
+      if (appliedPromo) {
+        discountRow.style.display = 'flex';
+        document.getElementById('discount-amt').textContent = '-' + formatPrice(discount, currency);
+      } else {
+        discountRow.style.display = 'none';
+      }
+      const ngn = formatPrice(finalPrice, 'NGN');
+      document.getElementById('total').textContent = ngn;
+      document.getElementById('charge-note').textContent = 'You will be charged in Nigerian naira (' + ngn + ').';
+    }
+
+    document.getElementById('apply-promo').addEventListener('click', async () => {
+      const code = (document.getElementById('promo-input').value || '').trim().toUpperCase();
+      const status = document.getElementById('promo-status');
+      if (!code) {
+        status.textContent = 'Enter a code.';
+        status.style.color = '#dc2626';
+        return;
+      }
+      status.textContent = 'Checking…';
+      status.style.color = '#64748b';
+      try {
+        const db = (await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')).getFirestore();
+        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
+        const snap = await getDoc(doc(db, 'promos', code));
+        if (!snap.exists()) {
+          appliedPromo = null;
+          status.textContent = 'Code expired or not found.';
+          status.style.color = '#dc2626';
+          updateTotal();
+          return;
+        }
+        appliedPromo = snap.data();
+        status.textContent = appliedPromo.percent + '% off applied!';
+        status.style.color = '#16a34a';
+        updateTotal();
+      } catch (err) {
+        status.textContent = 'Could not check code.';
+        status.style.color = '#dc2626';
+      }
+    });
+
     async function init() {
       currentUser = await waitForAuth();
       if (!currentUser) {
@@ -149,6 +208,7 @@
 
       const versions = mod.versions || [];
       const price = versions.length ? versions[0].price : (mod.price || 0);
+      basePrice = price;
       const hasFile = (versions.length && versions[0].fileUrl) || mod.fileUrl;
       const currency = getCurrency();
 
@@ -160,7 +220,7 @@
         </div>`;
       document.getElementById('price').textContent = formatPrice(price, currency);
       const ngn = formatPrice(price, 'NGN');
-      document.getElementById('total').textContent = ngn;
+      updateTotal();
       document.getElementById('charge-note').textContent = 'You will be charged in Nigerian naira (' + ngn + ').';
 
       if (!hasFile) { showError('This mod is not available to buy yet.'); return; }
@@ -175,7 +235,7 @@
 
       try {
         const versions = currentMod.versions || [];
-        const price = versions.length ? versions[0].price : (currentMod.price || 0);
+        const price = appliedPromo ? Math.max(0, basePrice * (1 - appliedPromo.percent / 100)) : basePrice;
 
         const res = await fetch(PAYSTACK_WORKER, {
           method: 'POST',
