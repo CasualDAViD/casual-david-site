@@ -34,6 +34,8 @@
     input, textarea, select { width: 100%; padding: 0.65rem 0.85rem; border-radius: 8px; border: 1px solid #cbd5e1; background: white; box-sizing: border-box; font-family: inherit; }
     [data-theme="dark"] input, [data-theme="dark"] textarea, [data-theme="dark"] select { background: #0f172a; color: #f1f5f9; border-color: #475569; }
     textarea { min-height: 100px; resize: vertical; }
+    .sub-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.3rem; }
+    .sub-grid label { font-weight: 500; margin: 0; display: flex; align-items: center; gap: 0.35rem; cursor: pointer; }
     .admin-gate { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 1.25rem; overflow: auto; background: var(--bg); color: var(--text); }
     .admin-gate.hidden { display: none; }
     .admin-login-stack { width: min(100%, 400px); display: flex; flex-direction: column; align-items: center; }
@@ -125,8 +127,8 @@
           <option value="mod">Mod</option>
           <option value="plugin">Plugin</option>
         </select>
-        <label>Subcategory</label>
-        <select id="mod-subcategory"></select>
+        <label>Subcategories (select any)</label>
+        <div id="mod-subcategory" class="sub-grid"></div>
         <label>Environment</label>
         <select id="mod-environment">
           <option value="client">Client</option>
