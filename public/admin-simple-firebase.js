@@ -152,6 +152,7 @@ $('save-mod-btn').addEventListener('click', async () => {
   const name = $('mod-name').value.trim();
   const summary = $('mod-summary').value.trim();
   const description = $('mod-desc').value.trim();
+  const thankYou = $('mod-thankyou').value.trim();
   const price = parseFloat($('mod-price').value);
   const category = $('mod-category').value;
   const editId = $('edit-id').value || crypto.randomUUID();
@@ -170,6 +171,7 @@ $('save-mod-btn').addEventListener('click', async () => {
       name,
       summary,
       description,
+      thankYou,
       price,
       mainCategory: category,
       category,
@@ -200,6 +202,7 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-name').value = '';
     $('mod-summary').value = '';
     $('mod-desc').value = '';
+    $('mod-thankyou').value = '';
     $('mod-price').value = '';
     updatePreview();
     loadMods();
@@ -220,6 +223,7 @@ async function editMod(id) {
   $('mod-name').value = m.name || '';
   $('mod-summary').value = m.summary || '';
   $('mod-desc').value = m.description || '';
+  $('mod-thankyou').value = m.thankYou || '';
   $('mod-price').value = price;
   $('mod-category').value = m.mainCategory || m.category || 'Utility & QoL';
   $('form-title').textContent = 'Edit Mod';
@@ -235,6 +239,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-name').value = '';
   $('mod-summary').value = '';
   $('mod-desc').value = '';
+  $('mod-thankyou').value = '';
   $('mod-price').value = '';
   updatePreview();
 });
