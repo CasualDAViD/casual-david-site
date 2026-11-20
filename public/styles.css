@@ -315,6 +315,15 @@ body {
   transform: translateY(-1px);
 }
 
+[data-theme="dark"] .btn-outline {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+[data-theme="dark"] .btn-outline:hover {
+  background: #334155;
+}
+
 /* Sections */
 .section {
   padding: 5rem 0;
