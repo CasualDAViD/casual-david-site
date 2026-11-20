@@ -78,6 +78,8 @@
     .perm-grid label { font-weight: 500; margin: 0; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
     .user-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap; }
     [data-theme="dark"] .user-item { border-color: #334155; }
+    .user-perms-edit { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; }
+    [data-theme="dark"] .user-perms-edit { border-color: #334155; }
 
     /* Markdown editor */
     .md-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.3rem; }
@@ -170,7 +172,7 @@
         </div>
         <label>Appreciation / Thank you message (shown after purchase)</label>
         <textarea id="mod-thankyou" placeholder="Thank you for supporting the mod! Click the download button to get your file." style="min-height:80px;"></textarea>
-        <label>Donate URL (optional, shown under gallery)</label>
+        <label id="donate-label">Donate URL (optional, shown under gallery)</label>
         <input type="url" id="mod-donate" placeholder="https://ko-fi.com/yourname">
         <label>Price (USD) *</label>
         <input type="number" id="mod-price" step="0.01" min="0">
@@ -298,7 +300,9 @@
         <input type="email" id="subuser-email" placeholder="user@example.com">
         <label>Permissions</label>
         <div class="perm-grid">
-          <label><input type="checkbox" id="perm-mods" value="mods"> Manage mods</label>
+          <label><input type="checkbox" id="perm-delete-mod" value="delete-mod"> Delete mod</label>
+          <label><input type="checkbox" id="perm-edit-mod" value="edit-mod"> Edit mod</label>
+          <label><input type="checkbox" id="perm-donate" value="donate"> Add donation link</label>
           <label><input type="checkbox" id="perm-socials" value="socials"> Edit socials</label>
           <label><input type="checkbox" id="perm-analytics" value="analytics"> View analytics</label>
           <label><input type="checkbox" id="perm-purchases" value="purchases"> View purchases</label>
