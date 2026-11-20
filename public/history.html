@@ -67,52 +67,45 @@
 
     const box = document.getElementById('orders');
 
-    function waitForAuth() {
+    function getUser() {
       return new Promise((resolve) => {
-        let attempts = 0;
-        const start = Date.now();
-        const check = () => {
-          if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
-            setTimeout(() => {
-              const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-                if (user) {
-                  unsub();
-                  resolve(user);
-                  return;
-                }
-                if (Date.now() - start > 3000) {
-                  unsub();
-                  resolve(null);
-                }
-              });
-            }, 300);
-          } else if (attempts < 40) {
-            attempts++;
-            setTimeout(check, 100);
-          } else {
-            resolve(null);
+        let tries = 0;
+        const tick = () => {
+          if (window.firebaseAuth && window.firebaseAuth.auth) {
+            const auth = window.firebaseAuth.auth;
+            if (auth.currentUser) { resolve(auth.currentUser); return; }
+            const unsub = window.firebaseAuth.onAuthStateChanged(auth, (user) => {
+              unsub();
+              resolve(user || null);
+            });
+            return;
           }
+          if (tries++ < 30) setTimeout(tick, 100);
+          else resolve(null);
         };
-        check();
+        setTimeout(tick, 200);
       });
     }
 
     async function load() {
-      const user = await waitForAuth();
+      box.innerHTML = '<p style="color:var(--text-muted);">Loading…</p>';
+      const user = await getUser();
       if (!user) {
-        location.replace('login.html?next=' + encodeURIComponent(location.pathname + location.search));
+        box.innerHTML = '<p>Please <a href="login.html?next=history.html" style="color:#2563eb;">sign in</a> to see your purchases.</p>';
         return;
       }
 
       try {
         const db = getFirestore();
-        const snap = await getDocs(collection(db, 'purchases'));
+        const snap = await Promise.race([
+          getDocs(collection(db, 'purchases')),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('Request timed out')), 8000))
+        ]);
 
         const mine = [];
         snap.forEach(d => {
           const p = d.data();
-          const pid = p.uid || p.userId;
-          if (pid === user.uid) mine.push({ id: d.id, ...p });
+          if ((p.uid || p.userId) === user.uid) mine.push(p);
         });
 
         if (!mine.length) {
@@ -120,36 +113,33 @@
           return;
         }
 
-        const rows = [];
+        let html = '';
         for (const p of mine) {
           let mod = { name: 'Mod', icon: '', fileUrl: '', fileName: 'download' };
           try {
-            const modSnap = await getDoc(doc(db, 'mods', p.modId));
-            if (modSnap.exists()) mod = modSnap.data();
+            const ms = await getDoc(doc(db, 'mods', p.modId));
+            if (ms.exists()) mod = ms.data();
           } catch (e) {}
 
           const ts = p.paidAt || p.purchasedAt;
-          const date = ts ? new Date(ts).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+          const date = ts ? new Date(ts).toLocaleDateString() : '';
           const amount = Number(p.amount || 0);
 
-          rows.push(`
+          html += `
             <div class="order-row">
               <div class="order-icon">${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>📦</span>'}</div>
               <div style="flex:1; min-width:180px;">
                 <strong>${escapeHtml(mod.name || 'Mod')}</strong>
-                <div style="font-size:0.85rem; color:#64748b;">
-                  ${date} • $${amount.toFixed(2)}
-                </div>
+                <div style="font-size:0.85rem; color:#64748b;">${date} • $${amount.toFixed(2)}</div>
               </div>
-              ${mod.fileUrl
-                ? `<a class="buy-btn" style="text-decoration:none; display:inline-block;" href="${escapeHtml(mod.fileUrl)}" download="${escapeHtml(mod.fileName || 'download')}">Download</a>`
-                : '<span style="font-size:0.85rem; color:#64748b;">File coming soon</span>'}
+              ${mod.fileUrl ? `<a class="buy-btn" style="text-decoration:none;" href="${escapeHtml(mod.fileUrl)}" download="${escapeHtml(mod.fileName || 'download')}">Download</a>` : ''}
             </div>
-          `);
+          `;
         }
-        box.innerHTML = rows.join('');
+        box.innerHTML = html;
       } catch (err) {
-        box.innerHTML = '<p style="color:#dc2626;">' + escapeHtml(err.message) + '</p>';
+        console.error(err);
+        box.innerHTML = '<p style="color:#dc2626;">Could not load purchases: ' + escapeHtml(err.message) + '</p>';
       }
     }
 
