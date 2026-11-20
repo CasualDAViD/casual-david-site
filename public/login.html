@@ -86,13 +86,35 @@
     }
 
     document.getElementById('google-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('google-btn');
+      btn.disabled = true;
+      setMsg('Opening Google…', true);
+
       const fb = await waitForFirebase();
-      if (!fb) { setMsg('Auth is still loading. Try again in a moment.'); return; }
+      if (!fb) {
+        setMsg('Auth is still loading. Try again in a moment.');
+        btn.disabled = false;
+        return;
+      }
+
       try {
-        await fb.signInWithPopup(fb.auth, fb.googleProvider);
-        location.href = next;
+        const result = await fb.signInWithPopup(fb.auth, fb.googleProvider);
+        if (result && result.user) {
+          setMsg('Signed in. Redirecting…', true);
+          setTimeout(() => { location.href = next; }, 400);
+        } else {
+          setMsg('Sign-in completed but no user returned. Try again.');
+          btn.disabled = false;
+        }
       } catch (err) {
-        setMsg(err.message || 'Google sign-in failed');
+        console.error('Google sign-in error:', err);
+        const code = err.code || '';
+        let msg = err.message || 'Google sign-in failed';
+        if (code === 'auth/popup-closed-by-user') msg = 'Sign-in cancelled.';
+        if (code === 'auth/popup-blocked') msg = 'Popup was blocked. Allow popups and try again.';
+        if (code === 'auth/unauthorized-domain') msg = 'This domain is not authorized for sign-in. Check Firebase Auth settings.';
+        setMsg(msg);
+        btn.disabled = false;
       }
     });
 
