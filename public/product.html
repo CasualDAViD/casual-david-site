@@ -19,12 +19,19 @@
     .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; z-index: 2; }
     .gallery-nav.prev { left: 0.5rem; }
     .gallery-nav.next { right: 0.5rem; }
-    .gallery-thumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .gallery-thumbs { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
     .gallery-thumbs img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
     .gallery-thumbs img.active { border-color: #2563eb; }
+    .donate-btn { display: inline-flex; align-items: center; gap: 0.4rem; background: #ff5e5b; color: white; padding: 0.55rem 1rem; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-top: 0.5rem; }
+    .donate-btn:hover { background: #e54d4a; }
     .product-info { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.5rem; }
     [data-theme="dark"] .product-info { background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
-    .product-info h1 { font-family: var(--heading); font-size: 1.75rem; margin-bottom: 0.5rem; }
+    .info-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .info-icon { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: #f1f5f9; }
+    .product-info h1 { font-family: var(--heading); font-size: 1.75rem; margin: 0; }
+    .subcats { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0 0.75rem; }
+    .subcat { background: #e0e7ff; color: #3730a3; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    [data-theme="dark"] .subcat { background: #312e81; color: #c7d2fe; }
     .product-price { font-size: 2rem; font-weight: 700; color: var(--primary); margin: 1rem 0; }
     .delivery { display: flex; justify-content: space-between; padding: 0.75rem 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin: 1rem 0; font-size: 0.95rem; }
     [data-theme="dark"] .delivery { border-color: #334155; }
@@ -116,17 +123,15 @@
         .replace(/^## (.+)$/gm, '<h2>$1</h2>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/\n/g, '<br>');
-      // Make bare URLs clickable
       html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
       return html;
     }
 
-    function getCategoryLabel(mod) {
-      const type = (mod.type || 'mod').charAt(0).toUpperCase() + (mod.type || 'mod').slice(1);
-      const subs = Array.isArray(mod.subcategories) && mod.subcategories.length
-        ? mod.subcategories.join(', ')
-        : (mod.subcategory || mod.mainCategory || '');
-      return subs ? `${type} • ${subs}` : type;
+    function getSubcats(mod) {
+      if (Array.isArray(mod.subcategories) && mod.subcategories.length) return mod.subcategories;
+      if (mod.subcategory) return [mod.subcategory];
+      if (mod.mainCategory) return [mod.mainCategory];
+      return [];
     }
 
     async function checkOwned(modId) {
@@ -138,6 +143,17 @@
         const snap = await getDoc(doc(db, 'purchases', user.uid + '_' + modId));
         return snap.exists();
       } catch (e) { return false; }
+    }
+
+    async function getDonateLink() {
+      try {
+        const modsApi = window.firebaseMods;
+        if (modsApi && modsApi.getSocials) {
+          const s = await modsApi.getSocials();
+          return s.donate || '';
+        }
+      } catch (e) {}
+      return '';
     }
 
     async function loadProduct() {
@@ -166,7 +182,10 @@
       const owned = await checkOwned(mod.id);
       const fileUrl = mod.fileUrl || (versions[0] && versions[0].fileUrl);
       const fileName = mod.fileName || (versions[0] && versions[0].fileName) || 'download';
-      images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
+      const screenshots = (mod.screenshots || []).filter(Boolean);
+      images = screenshots.length ? screenshots : (mod.icon ? [mod.icon] : []);
+      const subcats = getSubcats(mod);
+      const donate = mod.donateUrl || await getDonateLink();
       document.title = mod.name + ' • Casual_DAViD';
       box.innerHTML = `
         <div class="product-layout">
@@ -179,10 +198,16 @@
             <div class="gallery-thumbs" id="thumbs">
               ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" onclick="goTo(${i})" alt="">`).join('')}
             </div>
+            ${donate ? `<a class="donate-btn" href="${escapeHtml(donate)}" target="_blank" rel="noopener">☕ Donate</a>` : ''}
           </div>
           <div class="product-info">
-            <h1>${escapeHtml(mod.name)}</h1>
-            <span class="mod-cat">${escapeHtml(getCategoryLabel(mod))}</span>
+            <div class="info-header">
+              ${mod.icon ? `<img class="info-icon" src="${escapeHtml(mod.icon)}" alt="">` : ''}
+              <div>
+                <h1>${escapeHtml(mod.name)}</h1>
+                <div class="subcats">${subcats.map(s => `<span class="subcat">${escapeHtml(s)}</span>`).join('')}</div>
+              </div>
+            </div>
             <div class="product-price">${owned ? 'Owned' : formatPrice(price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
             ${hasFile
