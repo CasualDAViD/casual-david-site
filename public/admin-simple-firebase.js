@@ -28,6 +28,8 @@ const $ = (id) => document.getElementById(id);
 
 let allPurchases = [];
 let modNames = {};
+let analyticsChart = null;
+let analyticsData = { mods: [], purchases: [] };
 
 function showView(id) {
   ['loading-view', 'login-view', 'dashboard'].forEach((v) => $(v).classList.toggle('hidden', v !== id));
@@ -107,63 +109,169 @@ function showTab(tab) {
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
+function getTimeframeStart(tf) {
+  const now = Date.now();
+  const day = 86400000;
+  if (tf === 'today') return new Date().setHours(0,0,0,0);
+  if (tf === 'yesterday') return new Date().setHours(0,0,0,0) - day;
+  if (tf === '7') return now - 7 * day;
+  if (tf === '30') return now - 30 * day;
+  if (tf === '90') return now - 90 * day;
+  return 0;
+}
+
+function getTimeframeEnd(tf) {
+  if (tf === 'yesterday') return new Date().setHours(0,0,0,0);
+  return Date.now();
+}
+
+function bucketKey(ts, group) {
+  const d = new Date(ts);
+  if (group === 'month') return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  if (group === 'week') {
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay());
+    return start.toISOString().slice(0,10);
+  }
+  return d.toISOString().slice(0,10);
+}
+
+function formatBucket(key, group) {
+  if (group === 'month') {
+    const [y, m] = key.split('-');
+    return new Date(y, m-1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  }
+  return new Date(key).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 async function loadAnalytics() {
   try {
     const modsSnap = await getDocs(collection(db, 'mods'));
     const purchasesSnap = await getDocs(collection(db, 'purchases'));
 
-    let totalViews = 0;
-    let totalRevenue = 0;
-    const modMap = {};
+    analyticsData.mods = [];
+    modsSnap.forEach(d => analyticsData.mods.push({ id: d.id, ...d.data() }));
 
-    modsSnap.forEach(d => {
-      const m = d.data();
-      modMap[d.id] = { name: m.name || 'Mod', views: m.views || 0, purchases: 0, revenue: 0, testRevenue: 0 };
-      totalViews += m.views || 0;
-    });
+    analyticsData.purchases = [];
+    purchasesSnap.forEach(d => analyticsData.purchases.push({ id: d.id, ...d.data() }));
 
-    purchasesSnap.forEach(d => {
-      const p = d.data();
-      const amt = Number(p.amount || 0);
-      const isTest = p.test === true;
-      if (modMap[p.modId]) {
-        modMap[p.modId].purchases += 1;
-        if (isTest) modMap[p.modId].testRevenue += amt;
-        else {
-          modMap[p.modId].revenue += amt;
-          totalRevenue += amt;
-        }
-      }
-    });
+    const projectSelect = $('analytics-project');
+    const current = projectSelect.value;
+    projectSelect.innerHTML = '<option value="all">All projects</option>' +
+      analyticsData.mods.map(m => `<option value="${m.id}">${m.name || 'Mod'}</option>`).join('');
+    if (current && [...projectSelect.options].some(o => o.value === current)) projectSelect.value = current;
 
-    $('stat-views').textContent = totalViews;
-    $('stat-purchases').textContent = purchasesSnap.size;
-    $('stat-revenue').textContent = '$' + totalRevenue.toFixed(2);
-    $('stat-mods').textContent = modsSnap.size;
-
-    const box = $('mod-stats');
-    const rows = Object.values(modMap).sort((a, b) => b.views - a.views);
-    if (!rows.length) {
-      box.innerHTML = '<p class="muted">No mods yet.</p>';
-      return;
-    }
-    box.innerHTML = rows.map(m => {
-      const testLabel = m.testRevenue > 0 ? ` <span style="color:#f59e0b;">test $${m.testRevenue.toFixed(2)}</span>` : '';
-      return `
-        <div class="mod-stat">
-          <div><strong>${m.name}</strong></div>
-          <div class="muted">${m.views} views • ${m.purchases} purchases • $${m.revenue.toFixed(2)}${testLabel}</div>
-        </div>
-      `;
-    }).join('');
+    renderAnalytics();
   } catch (err) {
     $('mod-stats').innerHTML = '<p class="error">' + (err.message || 'Failed to load analytics') + '</p>';
   }
 }
 
-if ($('refresh-analytics')) {
-  $('refresh-analytics').addEventListener('click', loadAnalytics);
+function renderAnalytics() {
+  const projectId = $('analytics-project')?.value || 'all';
+  const timeframe = $('analytics-timeframe')?.value || '30';
+  const group = $('analytics-group')?.value || 'day';
+
+  const start = getTimeframeStart(timeframe);
+  const end = getTimeframeEnd(timeframe);
+
+  const filteredPurchases = analyticsData.purchases.filter(p => {
+    if (projectId !== 'all' && p.modId !== projectId) return false;
+    const ts = p.paidAt || p.purchasedAt || 0;
+    return ts >= start && ts <= end;
+  });
+
+  const filteredMods = projectId === 'all' ? analyticsData.mods : analyticsData.mods.filter(m => m.id === projectId);
+
+  let totalViews = 0;
+  let totalDownloads = 0;
+  let totalRevenue = 0;
+  const modMap = {};
+
+  filteredMods.forEach(m => {
+    modMap[m.id] = { name: m.name || 'Mod', views: m.views || 0, downloads: m.downloads || 0, purchases: 0, revenue: 0, testRevenue: 0 };
+    totalViews += m.views || 0;
+    totalDownloads += m.downloads || 0;
+  });
+
+  filteredPurchases.forEach(p => {
+    const amt = Number(p.amount || 0);
+    const isTest = p.test === true;
+    if (modMap[p.modId]) {
+      modMap[p.modId].purchases += 1;
+      if (isTest) modMap[p.modId].testRevenue += amt;
+      else {
+        modMap[p.modId].revenue += amt;
+        totalRevenue += amt;
+      }
+    }
+  });
+
+  $('stat-views').textContent = totalViews;
+  $('stat-downloads').textContent = totalDownloads;
+  $('stat-purchases').textContent = filteredPurchases.length;
+  $('stat-revenue').textContent = '$' + totalRevenue.toFixed(2);
+
+  // Chart: purchases over time
+  const buckets = {};
+  filteredPurchases.forEach(p => {
+    const ts = p.paidAt || p.purchasedAt || 0;
+    if (!ts) return;
+    const key = bucketKey(ts, group);
+    buckets[key] = (buckets[key] || 0) + 1;
+  });
+  const sortedKeys = Object.keys(buckets).sort();
+  const labels = sortedKeys.map(k => formatBucket(k, group));
+  const values = sortedKeys.map(k => buckets[k]);
+
+  const ctx = document.getElementById('analytics-chart');
+  if (analyticsChart) analyticsChart.destroy();
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  analyticsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : ['No data'],
+      datasets: [{
+        label: 'Purchases',
+        data: values.length ? values : [0],
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.15)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: isDark ? '#94a3b8' : '#64748b' }, grid: { color: isDark ? '#334155' : '#e2e8f0' } },
+        y: { beginAtZero: true, ticks: { color: isDark ? '#94a3b8' : '#64748b', precision: 0 }, grid: { color: isDark ? '#334155' : '#e2e8f0' } }
+      }
+    }
+  });
+
+  const box = $('mod-stats');
+  const rows = Object.values(modMap).sort((a, b) => b.views - a.views);
+  if (!rows.length) {
+    box.innerHTML = '<p class="muted">No mods yet.</p>';
+    return;
+  }
+  box.innerHTML = rows.map(m => {
+    const testLabel = m.testRevenue > 0 ? ` <span style="color:#f59e0b;">test $${m.testRevenue.toFixed(2)}</span>` : '';
+    return `
+      <div class="mod-stat">
+        <div><strong>${m.name}</strong></div>
+        <div class="muted">${m.views} views • ${m.downloads} downloads • ${m.purchases} purchases • $${m.revenue.toFixed(2)}${testLabel}</div>
+      </div>
+    `;
+  }).join('');
 }
+
+if ($('refresh-analytics')) $('refresh-analytics').addEventListener('click', loadAnalytics);
+if ($('analytics-project')) $('analytics-project').addEventListener('change', renderAnalytics);
+if ($('analytics-timeframe')) $('analytics-timeframe').addEventListener('change', renderAnalytics);
+if ($('analytics-group')) $('analytics-group').addEventListener('change', renderAnalytics);
 
 async function loadPurchases() {
   const list = $('purchase-list');
