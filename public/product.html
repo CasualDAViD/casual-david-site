@@ -117,6 +117,14 @@
         .replace(/\n/g, '<br>');
     }
 
+    function getCategoryLabel(mod) {
+      const type = (mod.type || 'mod').charAt(0).toUpperCase() + (mod.type || 'mod').slice(1);
+      const subs = Array.isArray(mod.subcategories) && mod.subcategories.length
+        ? mod.subcategories.join(', ')
+        : (mod.subcategory || mod.mainCategory || '');
+      return subs ? `${type} • ${subs}` : type;
+    }
+
     async function checkOwned(modId) {
       if (!window.firebaseAuth || !window.firebaseAuth.auth) return false;
       const user = window.firebaseAuth.auth.currentUser;
@@ -170,7 +178,7 @@
           </div>
           <div class="product-info">
             <h1>${escapeHtml(mod.name)}</h1>
-            <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.category || 'Mod')}</span>
+            <span class="mod-cat">${escapeHtml(getCategoryLabel(mod))}</span>
             <div class="product-price">${owned ? 'Owned' : formatPrice(price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
             ${hasFile
