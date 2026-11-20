@@ -19,6 +19,7 @@
     .btn:hover { background: #1d4ed8; }
     .appreciation { margin-top: 1rem; line-height: 1.6; color: #475569; }
     [data-theme="dark"] .appreciation { color: #cbd5e1; }
+    .ref-id { margin-top: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; color: #64748b; word-break: break-all; }
     @media (max-width: 700px) { .complete-layout { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -142,6 +143,7 @@
               <div class="check">✅</div>
               <h2>Payment successful</h2>
               ${fileUrl ? `<a class="btn" href="${fileUrl}" download="${fileName}">Download mod</a>` : '<p>File link will be available shortly.</p>'}
+              ${reference ? `<div class="ref-id">Reference: ${reference}</div>` : ''}
               <div style="margin-top:1.5rem;"><a href="history.html" style="color:#2563eb;">View purchase history</a></div>
             </div>
             <div class="info-side">
