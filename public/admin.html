@@ -73,6 +73,12 @@
     .test-badge { background: #fef3c7; color: #92400e; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
     [data-theme="dark"] .test-badge { background: #78350f; color: #fef3c7; }
 
+    /* Users */
+    .perm-grid { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: 0.5rem 0; }
+    .perm-grid label { font-weight: 500; margin: 0; display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+    .user-item { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 10px; flex-wrap: wrap; }
+    [data-theme="dark"] .user-item { border-color: #334155; }
+
     /* Markdown editor */
     .md-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.3rem; }
     .md-pane { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-height: 220px; }
@@ -107,6 +113,20 @@
     </div>
   </div>
 
+  <div id="change-password-view" class="admin-gate hidden">
+    <div class="admin-login-stack">
+      <img class="admin-login-logo" src="images/admin-logo.png" alt="">
+      <h1 class="admin-login-title">Set new password</h1>
+      <form id="change-pw-form" class="admin-login-card">
+        <p style="margin:0 0 1rem; color:#64748b; font-size:0.9rem;">Your temporary password must be changed before you can access the admin page.</p>
+        <input type="password" id="new-password" placeholder="New password (min 8 characters)" required minlength="8">
+        <input type="password" id="confirm-password" placeholder="Confirm new password" required minlength="8">
+        <button class="btn" type="submit" id="change-pw-btn" style="width:100%;border-radius:999px;">Set password</button>
+        <div id="change-pw-msg" class="error"></div>
+      </form>
+    </div>
+  </div>
+
   <div id="dashboard" class="admin-wrap hidden">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem;">
       <h1 style="font-size:1.5rem;">Casual_DAViD Admin</h1>
@@ -117,10 +137,11 @@
     </div>
 
     <div class="tabs">
-      <button data-tab="mods" class="active">Mods</button>
-      <button data-tab="socials">Social Links</button>
-      <button data-tab="analytics">Analytics</button>
-      <button data-tab="purchases">Purchases</button>
+      <button data-tab="mods" class="active" data-perm="mods">Mods</button>
+      <button data-tab="socials" data-perm="socials">Social Links</button>
+      <button data-tab="analytics" data-perm="analytics">Analytics</button>
+      <button data-tab="purchases" data-perm="purchases">Purchases</button>
+      <button data-tab="users" data-perm="users" class="hidden">Users</button>
     </div>
 
     <div id="tab-mods">
@@ -267,6 +288,27 @@
         <input type="text" id="purchase-search" placeholder="Search by reference ID, name, email, or mod…" style="margin-bottom:1rem;">
         <div id="purchase-list" class="mod-list"><p class="muted">Loading…</p></div>
         <button class="btn" id="refresh-purchases" style="margin-top:1rem;">Refresh</button>
+      </div>
+    </div>
+
+    <div id="tab-users" class="hidden">
+      <div class="card">
+        <h2>Add sub-user</h2>
+        <label>Email</label>
+        <input type="email" id="subuser-email" placeholder="user@example.com">
+        <label>Permissions</label>
+        <div class="perm-grid">
+          <label><input type="checkbox" id="perm-mods" value="mods"> Manage mods</label>
+          <label><input type="checkbox" id="perm-socials" value="socials"> Edit socials</label>
+          <label><input type="checkbox" id="perm-analytics" value="analytics"> View analytics</label>
+          <label><input type="checkbox" id="perm-purchases" value="purchases"> View purchases</label>
+        </div>
+        <button class="btn" id="add-user-btn">Add user & send email</button>
+        <div id="user-msg"></div>
+      </div>
+      <div class="card">
+        <h2>Sub-users</h2>
+        <div id="users-list" class="mod-list"><p class="muted">Loading…</p></div>
       </div>
     </div>
   </div>
