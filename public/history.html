@@ -67,6 +67,12 @@
 
     const box = document.getElementById('orders');
 
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({
+        '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;'
+      }[c]));
+    }
+
     function getUser() {
       return new Promise((resolve) => {
         let tries = 0;
@@ -88,7 +94,6 @@
     }
 
     async function load() {
-      box.innerHTML = '<p style="color:var(--text-muted);">Loading…</p>';
       const user = await getUser();
       if (!user) {
         box.innerHTML = '<p>Please <a href="login.html?next=history.html" style="color:#2563eb;">sign in</a> to see your purchases.</p>';
@@ -97,10 +102,7 @@
 
       try {
         const db = getFirestore();
-        const snap = await Promise.race([
-          getDocs(collection(db, 'purchases')),
-          new Promise((_, rej) => setTimeout(() => rej(new Error('Request timed out')), 8000))
-        ]);
+        const snap = await getDocs(collection(db, 'purchases'));
 
         const mine = [];
         snap.forEach(d => {
@@ -139,7 +141,10 @@
         box.innerHTML = html;
       } catch (err) {
         console.error(err);
-        box.innerHTML = '<p style="color:#dc2626;">Could not load purchases: ' + escapeHtml(err.message) + '</p>';
+        const msg = (err.message || '').includes('permission')
+          ? 'Permission denied. Update your Firestore rules to allow reading purchases.'
+          : (err.message || 'Failed to load');
+        box.innerHTML = '<p style="color:#dc2626;">' + escapeHtml(msg) + '</p>';
       }
     }
 
