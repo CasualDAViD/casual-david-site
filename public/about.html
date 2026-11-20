@@ -8,6 +8,28 @@
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    .about-grid { display: grid; grid-template-columns: 1fr 280px; gap: 2rem; align-items: center; max-width: 1000px; position: relative; }
+    .about-char { text-align: center; }
+    .about-char img { max-width: 100%; height: auto; }
+    @media (max-width: 768px) {
+      .about-grid { grid-template-columns: 1fr; }
+      .about-char {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 140px;
+        z-index: 2;
+        pointer-events: none;
+      }
+      .about-grid > div:first-child {
+        position: relative;
+        z-index: 1;
+        padding-bottom: 8rem;
+      }
+    }
+  </style>
 </head>
 <body>
   <header class="header"><div class="header-inner">
@@ -51,7 +73,7 @@
   </section>
 
   <section class="section">
-    <div class="container" style="display:grid; grid-template-columns: 1fr 280px; gap: 2rem; align-items: center; max-width: 1000px;">
+    <div class="container" class="about-grid">
       <div>
         <p class="lead" style="text-align:left; margin-bottom:1.5rem;">I make Minecraft mods that keep the game feeling relaxed and fun. No bloat, just useful tools and quality-of-life improvements tested in my own worlds. Everything here is made with care for casual players who just want to chill and build.</p>
         <p>Whether it’s a small QoL tweak or a full survival pack, the goal is always the same: keep Minecraft feeling like Minecraft — just a little smoother, a little cleaner, and a little more enjoyable.</p>
@@ -70,7 +92,7 @@
           </a>
         </div>
       </div>
-      <div style="text-align:center;">
+      <div class="about-char">
         <img src="character.png" alt="Casual_DAViD" style="max-width:100%; height:auto; border-radius:16px;">
       </div>
     </div>
