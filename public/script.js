@@ -3,6 +3,24 @@
 let modsCache = [];
 let currentCurrency = 'USD';
 
+function waitForMods(maxWait = 5000) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const check = () => {
+      if (window.firebaseMods && typeof window.firebaseMods.list === 'function') {
+        resolve(window.firebaseMods);
+        return;
+      }
+      if (Date.now() - start > maxWait) {
+        resolve(null);
+        return;
+      }
+      setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
 function renderModsGrid() {
   const grid = document.getElementById('mods-grid');
   if (!grid) return;
@@ -67,10 +85,9 @@ async function renderMods() {
   if (!grid) return;
   grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#64748b;">Loading\u2026</p>';
   try {
-    if (!window.firebaseMods) {
-      await new Promise(r => setTimeout(r, 300));
-    }
-    modsCache = await window.firebaseMods.list();
+    const modsApi = await waitForMods();
+    if (!modsApi) throw new Error('Mods loader failed to start. Refresh the page.');
+    modsCache = await modsApi.list();
   } catch (err) {
     grid.innerHTML = `<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#dc2626;">${escapeHtml(err.message)}</p>`;
     return;
@@ -165,8 +182,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (document.getElementById('socials-cards')) {
     let socials = {};
     try {
-      if (window.firebaseMods && window.firebaseMods.getSocials) {
-        socials = await window.firebaseMods.getSocials();
+      const modsApi = await waitForMods();
+      if (modsApi && modsApi.getSocials) {
+        socials = await modsApi.getSocials();
       }
     } catch (e) {}
     renderSocials(socials);
