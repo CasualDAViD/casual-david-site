@@ -310,7 +310,7 @@
       <div class="card">
         <h2 style="margin-bottom:0.25rem;">Promo codes</h2>
         <p class="muted" style="margin-bottom:1rem;">Create codes people can enter at checkout for a discount.</p>
-        <div style="display:grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap:0.75rem; align-items:end;">
+        <div style="display:grid; grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr auto; gap:0.75rem; align-items:end;">
           <div>
             <label>Code</label>
             <input type="text" id="promo-code" placeholder="e.g. STUDENT20" style="text-transform:uppercase;">
@@ -320,13 +320,20 @@
             <input type="number" id="promo-percent" min="5" max="100" step="1" value="20">
           </div>
           <div>
-            <label>&nbsp;</label>
-            <button type="button" class="btn btn-plain" id="gen-code-btn" style="width:100%; margin:0;">Generate random</button>
+            <label>Max uses</label>
+            <input type="number" id="promo-max" min="1" placeholder="no limit">
+          </div>
+          <div>
+            <label>Expires on</label>
+            <input type="date" id="promo-expires">
           </div>
           <div>
             <label>&nbsp;</label>
-            <button class="btn" id="create-promo-btn" style="margin:0; white-space:nowrap;">Create</button>
+            <button type="button" class="btn btn-plain" id="gen-code-btn" style="width:100%; margin:0;">Random</button>
           </div>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <button class="btn" id="create-promo-btn" style="margin:0;">Create promo</button>
         </div>
         <div id="promo-msg" style="margin-top:0.5rem;"></div>
       </div>
@@ -338,7 +345,9 @@
               <tr style="text-align:left; border-bottom:1px solid #e2e8f0;">
                 <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">CODE</th>
                 <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">DISCOUNT</th>
-                <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">CREATED</th>
+                <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">USES</th>
+                <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">EXPIRES</th>
+                <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;">STATUS</th>
                 <th style="padding:0.6rem 0.5rem; font-weight:600; color:#64748b;"></th>
               </tr>
             </thead>
