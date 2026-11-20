@@ -21,6 +21,9 @@ const googleProvider = new GoogleAuthProvider();
 const ADMIN_EMAILS = ['okpeidavid7@gmail.com'];
 const UPLOAD_URL = 'https://casualdavid-upload.okpeidavid7.workers.dev/';
 
+const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Survival', 'Magic', 'Technology', 'Adventure', 'Decoration'];
+const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
+
 const $ = (id) => document.getElementById(id);
 
 function showView(id) {
@@ -38,9 +41,18 @@ function isAdmin(user) {
   return user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
 }
 
+function fillSubcategories(type, selected) {
+  const sel = $('mod-subcategory');
+  const list = type === 'plugin' ? PLUGIN_SUBS : MOD_SUBS;
+  sel.innerHTML = list.map(s => `<option value="${s}" ${s === selected ? 'selected' : ''}>${s}</option>`).join('');
+}
+
+$('mod-type').addEventListener('change', () => fillSubcategories($('mod-type').value));
+
 onAuthStateChanged(auth, (user) => {
   if (isAdmin(user)) {
     showView('dashboard');
+    fillSubcategories('mod');
     loadMods();
     loadSocials();
   } else {
@@ -113,12 +125,14 @@ async function loadMods() {
       const m = d.data();
       const versions = m.versions || [];
       const price = versions.length ? versions[0].price : (m.price || 0);
+      const type = m.type || 'mod';
+      const sub = m.subcategory || m.mainCategory || '';
       return `<div class="mod-item">
         <div style="display:flex;align-items:center;gap:0.75rem;">
           ${m.icon ? `<img src="${m.icon}" class="preview-img">` : '<div class="preview-img"></div>'}
           <div>
             <strong>${m.name || ''}</strong>
-            <div class="muted">$${Number(price).toFixed(2)} • ${m.mainCategory || m.category || ''}</div>
+            <div class="muted">$${Number(price).toFixed(2)} • ${type} / ${sub}</div>
           </div>
         </div>
         <div>
@@ -154,7 +168,9 @@ $('save-mod-btn').addEventListener('click', async () => {
   const description = $('mod-desc').value.trim();
   const thankYou = $('mod-thankyou').value.trim();
   const price = parseFloat($('mod-price').value);
-  const category = $('mod-category').value;
+  const type = $('mod-type').value;
+  const subcategory = $('mod-subcategory').value;
+  const environment = $('mod-environment').value;
   const editId = $('edit-id').value || crypto.randomUUID();
 
   if (!name || !summary || isNaN(price)) {
@@ -173,8 +189,11 @@ $('save-mod-btn').addEventListener('click', async () => {
       description,
       thankYou,
       price,
-      mainCategory: category,
-      category,
+      type,
+      subcategory,
+      environment,
+      mainCategory: subcategory,
+      category: type,
       updatedAt: Date.now(),
       unlisted: false,
       versions: [{ name: '1.0', price, displayName: '', fileUrl: '', fileName: '' }]
@@ -204,6 +223,9 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-desc').value = '';
     $('mod-thankyou').value = '';
     $('mod-price').value = '';
+    $('mod-type').value = 'mod';
+    fillSubcategories('mod');
+    $('mod-environment').value = 'client';
     updatePreview();
     loadMods();
   } catch (err) {
@@ -225,7 +247,9 @@ async function editMod(id) {
   $('mod-desc').value = m.description || '';
   $('mod-thankyou').value = m.thankYou || '';
   $('mod-price').value = price;
-  $('mod-category').value = m.mainCategory || m.category || 'Utility & QoL';
+  $('mod-type').value = m.type || 'mod';
+  fillSubcategories(m.type || 'mod', m.subcategory || m.mainCategory || '');
+  $('mod-environment').value = m.environment || 'client';
   $('form-title').textContent = 'Edit Mod';
   $('cancel-edit-btn').classList.remove('hidden');
   updatePreview();
@@ -241,6 +265,9 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-desc').value = '';
   $('mod-thankyou').value = '';
   $('mod-price').value = '';
+  $('mod-type').value = 'mod';
+  fillSubcategories('mod');
+  $('mod-environment').value = 'client';
   updatePreview();
 });
 
