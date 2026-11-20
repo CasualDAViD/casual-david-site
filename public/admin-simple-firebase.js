@@ -177,6 +177,7 @@ $('save-mod-btn').addEventListener('click', async () => {
   const summary = $('mod-summary').value.trim();
   const description = $('mod-desc').value.trim();
   const thankYou = $('mod-thankyou').value.trim();
+  const donateUrl = $('mod-donate').value.trim();
   const price = parseFloat($('mod-price').value);
   const type = $('mod-type').value;
   const subcategories = getSelectedSubcategories();
@@ -198,6 +199,7 @@ $('save-mod-btn').addEventListener('click', async () => {
       summary,
       description,
       thankYou,
+      donateUrl,
       price,
       type,
       subcategories,
@@ -233,6 +235,7 @@ $('save-mod-btn').addEventListener('click', async () => {
     $('mod-summary').value = '';
     $('mod-desc').value = '';
     $('mod-thankyou').value = '';
+    $('mod-donate').value = '';
     $('mod-price').value = '';
     $('mod-type').value = 'mod';
     fillSubcategories('mod');
@@ -257,6 +260,7 @@ async function editMod(id) {
   $('mod-summary').value = m.summary || '';
   $('mod-desc').value = m.description || '';
   $('mod-thankyou').value = m.thankYou || '';
+  $('mod-donate').value = m.donateUrl || '';
   $('mod-price').value = price;
   $('mod-type').value = m.type || 'mod';
   const subs = Array.isArray(m.subcategories) ? m.subcategories : (m.subcategory ? [m.subcategory] : (m.mainCategory ? [m.mainCategory] : []));
@@ -276,6 +280,7 @@ $('cancel-edit-btn').addEventListener('click', () => {
   $('mod-summary').value = '';
   $('mod-desc').value = '';
   $('mod-thankyou').value = '';
+  $('mod-donate').value = '';
   $('mod-price').value = '';
   $('mod-type').value = 'mod';
   fillSubcategories('mod');
