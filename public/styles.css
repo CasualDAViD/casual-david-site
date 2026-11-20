@@ -1010,8 +1010,17 @@ body {
   fill: #f1f5f9;
 }
 
-/* Sticky footer */
-html, body { height: 100%; }
-body { display: flex; flex-direction: column; min-height: 100vh; }
-body > main, body > .section, body > .checkout-page, body > .admin-wrap { flex: 1; }
-.footer { margin-top: auto; }
+/* Prevent content colliding with sticky header */
+body { padding-top: 0; }
+.checkout-page,
+.section,
+.admin-wrap {
+  padding-top: 1.5rem;
+}
+@media (max-width: 768px) {
+  .checkout-page,
+  .section,
+  .admin-wrap {
+    padding-top: 1rem;
+  }
+}
