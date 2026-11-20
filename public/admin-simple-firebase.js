@@ -810,31 +810,53 @@ function randomCode(len = 8) {
   return out;
 }
 
+function promoStatus(p) {
+  if (p.unlisted) return { text: 'Unlisted', color: '#64748b' };
+  if (p.expiresAt && Date.now() > p.expiresAt) return { text: 'Expired', color: '#dc2626' };
+  if (p.maxUses && (p.uses || 0) >= p.maxUses) return { text: 'Used up', color: '#f59e0b' };
+  return { text: 'Active', color: '#16a34a' };
+}
+
 async function loadPromos() {
   const list = $('promo-list');
   if (!list) return;
-  list.innerHTML = '<tr><td colspan="4" class="muted" style="padding:1rem;">Loading…</td></tr>';
+  list.innerHTML = '<tr><td colspan="6" class="muted" style="padding:1rem;">Loading…</td></tr>';
   try {
     const snap = await getDocs(collection(db, 'promos'));
     if (snap.empty) {
-      list.innerHTML = '<tr><td colspan="4" class="muted" style="padding:1rem;">No promo codes yet.</td></tr>';
+      list.innerHTML = '<tr><td colspan="6" class="muted" style="padding:1rem;">No promo codes yet.</td></tr>';
       return;
     }
     list.innerHTML = snap.docs.map(d => {
       const p = d.data();
-      const created = p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—';
+      const status = promoStatus(p);
+      const uses = (p.uses || 0) + (p.maxUses ? ' / ' + p.maxUses : '');
+      const expires = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString() : '—';
+      const action = p.unlisted
+        ? `<button class="btn" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-rel-promo="${d.id}">Relist</button>`
+        : `<button class="btn btn-plain" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-unlist-promo="${d.id}">Unlist</button>`;
       return `<tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:0.7rem 0.5rem; font-family:ui-monospace,monospace; font-weight:600; letter-spacing:0.04em;">${d.id}</td>
         <td style="padding:0.7rem 0.5rem;">${p.percent}% off</td>
-        <td style="padding:0.7rem 0.5rem; color:#64748b;">${created}</td>
-        <td style="padding:0.7rem 0.5rem; text-align:right;"><button class="btn btn-danger" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-del-promo="${d.id}">Delete</button></td>
+        <td style="padding:0.7rem 0.5rem;">${uses}</td>
+        <td style="padding:0.7rem 0.5rem; color:#64748b;">${expires}</td>
+        <td style="padding:0.7rem 0.5rem;"><span style="background:${status.color}22; color:${status.color}; padding:0.15rem 0.5rem; border-radius:999px; font-size:0.75rem; font-weight:600;">${status.text}</span></td>
+        <td style="padding:0.7rem 0.5rem; text-align:right;">${action}</td>
       </tr>`;
     }).join('');
-    list.querySelectorAll('[data-del-promo]').forEach(b => {
-      b.addEventListener('click', () => deletePromo(b.dataset.delPromo));
-    });
+    list.querySelectorAll('[data-unlist-promo]').forEach(b => b.addEventListener('click', () => setPromoListed(b.dataset.unlistPromo, true)));
+    list.querySelectorAll('[data-rel-promo]').forEach(b => b.addEventListener('click', () => setPromoListed(b.dataset.relPromo, false)));
   } catch (err) {
-    list.innerHTML = '<tr><td colspan="4" class="error" style="padding:1rem;">' + (err.message || 'Failed to load') + '</td></tr>';
+    list.innerHTML = '<tr><td colspan="6" class="error" style="padding:1rem;">' + (err.message || 'Failed to load') + '</td></tr>';
+  }
+}
+
+async function setPromoListed(code, unlisted) {
+  try {
+    await setDoc(doc(db, 'promos', code), { unlisted }, { merge: true });
+    loadPromos();
+  } catch (err) {
+    alert(err.message || 'Failed');
   }
 }
 
@@ -866,14 +888,23 @@ if ($('create-promo-btn')) {
     const btn = $('create-promo-btn');
     btn.disabled = true;
     setMsg('promo-msg', 'Creating…', true);
+    const maxUses = Number($('promo-max').value) || null;
+    const expiresVal = $('promo-expires').value;
+    const expiresAt = expiresVal ? new Date(expiresVal + 'T23:59:59').getTime() : null;
     try {
       await setDoc(doc(db, 'promos', code), {
         code,
         percent,
+        maxUses,
+        uses: 0,
+        expiresAt,
+        unlisted: false,
         createdAt: Date.now()
       });
       setMsg('promo-msg', 'Promo ' + code + ' created (' + percent + '% off).', true);
       $('promo-code').value = '';
+      $('promo-max').value = '';
+      $('promo-expires').value = '';
       loadPromos();
     } catch (err) {
       setMsg('promo-msg', err.message || 'Failed to create promo');
