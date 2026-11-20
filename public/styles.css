@@ -1021,17 +1021,41 @@ body { min-height: 100%; display: flex; flex-direction: column; }
   margin-top: 1rem;
 }
 
-/* Page transitions */
+/* Smooth page transitions */
 body {
-  animation: pageIn 0.25s ease-out;
+  animation: pageIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 @keyframes pageIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
 }
+
+/* Staggered fade-in for cards and buttons */
+.glass-card,
+.socials-ref-card,
+.mod-card,
+.checkout-card,
+.product-info,
+.gallery,
+.btn,
+.btn-sm,
+.btn-outline {
+  animation: popIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.glass-card:nth-child(1), .socials-ref-card:nth-child(1) { animation-delay: 0.05s; }
+.glass-card:nth-child(2), .socials-ref-card:nth-child(2) { animation-delay: 0.1s; }
+.glass-card:nth-child(3), .socials-ref-card:nth-child(3) { animation-delay: 0.15s; }
+.glass-card:nth-child(4), .socials-ref-card:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Soft exit */
 .page-exit {
-  animation: pageOut 0.18s ease-in forwards;
+  animation: pageOut 0.2s ease-in forwards;
 }
 @keyframes pageOut {
-  to { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 0; transform: translateY(-8px); }
 }
