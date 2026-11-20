@@ -2,6 +2,7 @@
 
 let modsCache = [];
 let currentCurrency = 'USD';
+let currentTypeFilter = 'all';
 let ownedMods = new Set();
 
 function waitForMods(maxWait = 5000) {
@@ -39,29 +40,49 @@ async function loadOwnedMods() {
   } catch (e) { console.warn('Could not load purchases', e); }
 }
 
+function getCategoryLabel(mod) {
+  const type = (mod.type || 'mod').charAt(0).toUpperCase() + (mod.type || 'mod').slice(1);
+  const subs = Array.isArray(mod.subcategories) && mod.subcategories.length
+    ? mod.subcategories.join(', ')
+    : (mod.subcategory || mod.mainCategory || '');
+  return subs ? `${type} • ${subs}` : type;
+}
+
 function renderModsGrid() {
   const grid = document.getElementById('mods-grid');
   if (!grid) return;
 
-  if (modsCache.length === 0) {
+  const filtered = currentTypeFilter === 'all'
+    ? modsCache
+    : modsCache.filter(m => (m.type || 'mod') === currentTypeFilter);
+
+  if (filtered.length === 0) {
     grid.innerHTML = `
       <div style="grid-column:1/-1; text-align:center; padding:4rem 1rem; color:#64748b;">
-        <p style="font-size:1.1rem;">No mods listed yet.</p>
+        <p style="font-size:1.1rem;">No ${currentTypeFilter === 'all' ? 'mods' : currentTypeFilter + 's'} listed yet.</p>
         <p style="margin-top:0.5rem; font-size:0.9rem;">Check back soon or follow the socials.</p>
       </div>`;
     return;
   }
 
   grid.innerHTML = `
-    <div style="grid-column:1/-1; text-align:right; margin-bottom:1rem;">
-      <label style="font-size:0.9rem; margin-right:0.5rem;">Currency:</label>
-      <select id="currency-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1;">
-        <option value="USD" ${currentCurrency==='USD'?'selected':''}>USD</option>
-        <option value="NGN" ${currentCurrency==='NGN'?'selected':''}>NGN</option>
-        <option value="EUR" ${currentCurrency==='EUR'?'selected':''}>EUR</option>
-      </select>
+    <div style="grid-column:1/-1; text-align:right; margin-bottom:1rem; display:flex; justify-content:flex-end; gap:1rem; flex-wrap:wrap; align-items:center;">
+      <label style="font-size:0.9rem;">Type:
+        <select id="type-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1; margin-left:0.4rem;">
+          <option value="all" ${currentTypeFilter==='all'?'selected':''}>All</option>
+          <option value="mod" ${currentTypeFilter==='mod'?'selected':''}>Mod</option>
+          <option value="plugin" ${currentTypeFilter==='plugin'?'selected':''}>Plugin</option>
+        </select>
+      </label>
+      <label style="font-size:0.9rem;">Currency:
+        <select id="currency-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1; margin-left:0.4rem;">
+          <option value="USD" ${currentCurrency==='USD'?'selected':''}>USD</option>
+          <option value="NGN" ${currentCurrency==='NGN'?'selected':''}>NGN</option>
+          <option value="EUR" ${currentCurrency==='EUR'?'selected':''}>EUR</option>
+        </select>
+      </label>
     </div>
-  ` + modsCache.map(mod => {
+  ` + filtered.map(mod => {
     const versions = mod.versions || [];
     const minPrice = versions.length ? Math.min(...versions.map(v => Number(v.price) || 0)) : (mod.price || 0);
     const hasFile = versions.some(v => v.fileUrl) || mod.fileUrl;
@@ -76,7 +97,7 @@ function renderModsGrid() {
         </div>
         <div class="mod-title">
           <strong>${escapeHtml(mod.name)}</strong>
-          <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.category || 'Mod')}</span>
+          <span class="mod-cat">${escapeHtml(getCategoryLabel(mod))}</span>
         </div>
       </div>
       <p class="mod-desc">${escapeHtml(mod.summary || mod.description || '')}</p>
@@ -92,6 +113,10 @@ function renderModsGrid() {
   }).join('');
 
   document.getElementById('currency-select').addEventListener('change', (e) => changeCurrency(e.target.value));
+  document.getElementById('type-select').addEventListener('change', (e) => {
+    currentTypeFilter = e.target.value;
+    renderModsGrid();
+  });
   grid.querySelectorAll('.mod-card').forEach(card => {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.buy-btn')) return;
