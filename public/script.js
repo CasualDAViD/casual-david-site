@@ -66,16 +66,16 @@ function renderModsGrid() {
   }
 
   grid.innerHTML = `
-    <div style="grid-column:1/-1; text-align:right; margin-bottom:1rem; display:flex; justify-content:flex-end; gap:1rem; flex-wrap:wrap; align-items:center;">
-      <label style="font-size:0.9rem;">Type:
-        <select id="type-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1; margin-left:0.4rem;">
+    <div class="filter-bar">
+      <label>Type:
+        <select id="type-select" class="filter-select">
           <option value="all" ${currentTypeFilter==='all'?'selected':''}>All</option>
           <option value="mod" ${currentTypeFilter==='mod'?'selected':''}>Mod</option>
           <option value="plugin" ${currentTypeFilter==='plugin'?'selected':''}>Plugin</option>
         </select>
       </label>
-      <label style="font-size:0.9rem;">Currency:
-        <select id="currency-select" style="padding:0.4rem 0.6rem; border-radius:8px; border:1px solid #cbd5e1; margin-left:0.4rem;">
+      <label>Currency:
+        <select id="currency-select" class="filter-select">
           <option value="USD" ${currentCurrency==='USD'?'selected':''}>USD</option>
           <option value="NGN" ${currentCurrency==='NGN'?'selected':''}>NGN</option>
           <option value="EUR" ${currentCurrency==='EUR'?'selected':''}>EUR</option>
@@ -93,7 +93,7 @@ function renderModsGrid() {
     <div class="mod-card" data-id="${escapeHtml(mod.id)}" style="cursor:pointer;">
       <div class="mod-header">
         <div class="mod-icon">
-          ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>\u{1F4E6}</span>'}
+          ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>📦</span>'}
         </div>
         <div class="mod-title">
           <strong>${escapeHtml(mod.name)}</strong>
@@ -134,7 +134,7 @@ function renderModsGrid() {
 async function renderMods() {
   const grid = document.getElementById('mods-grid');
   if (!grid) return;
-  grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#64748b;">Loading\u2026</p>';
+  grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding:3rem 1rem; color:#64748b;">Loading…</p>';
   try {
     const modsApi = await waitForMods();
     if (!modsApi) throw new Error('Mods loader failed to start. Refresh the page.');
@@ -175,7 +175,7 @@ function renderSocials(s) {
       handle: s.tiktokHandle || '@casual_david',
       label: 'QUICK CLIPS',
       title: 'Fast mod finds and building ideas.',
-      desc: 'Quick mod spotlights, shader tests, and bite-sized clips for when you\u2019re just scrolling.',
+      desc: 'Quick mod spotlights, shader tests, and bite-sized clips for when you’re just scrolling.',
       url: s.tiktok || '#',
       icon: `<svg width="22" height="22" viewBox="0 0 24 24"><path fill="#000" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>`
     },
@@ -219,12 +219,12 @@ function renderSocials(s) {
           <strong>${p.name}</strong>
           <div class="sc-handle">${escapeHtml(p.handle)}</div>
         </div>
-        <span class="sc-arrow">\u2197</span>
+        <span class="sc-arrow">↗</span>
       </div>
       <div class="sc-label">${p.label}</div>
       <h3>${p.title}</h3>
       <p>${p.desc}</p>
-      <div class="sc-link">${p.key === 'discord' ? 'Join Discord' : 'Watch on ' + p.name} \u2192</div>
+      <div class="sc-link">${p.key === 'discord' ? 'Join Discord' : 'Watch on ' + p.name} →</div>
     </a>
   `).join('');
 }
