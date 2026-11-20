@@ -70,13 +70,27 @@
     function waitForAuth() {
       return new Promise((resolve) => {
         let attempts = 0;
+        const start = Date.now();
         const check = () => {
           if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
-            const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-              unsub();
-              resolve(user);
-            });
-          } else if (attempts < 50) {
+            // Give Firebase a moment to restore the persisted session
+            setTimeout(() => {
+              const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+                // If we get a user, resolve immediately
+                if (user) {
+                  unsub();
+                  resolve(user);
+                  return;
+                }
+                // If no user yet, wait a bit more in case session is still restoring
+                if (Date.now() - start < 2500) {
+                  return;
+                }
+                unsub();
+                resolve(null);
+              });
+            }, 300);
+          } else if (attempts < 40) {
             attempts++;
             setTimeout(check, 100);
           } else {
