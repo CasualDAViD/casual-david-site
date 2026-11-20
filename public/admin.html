@@ -46,6 +46,20 @@
     .oauth-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid var(--border); background: white; cursor: pointer; font-weight: 500; margin-bottom: 0.75rem; }
     [data-theme="dark"] .oauth-btn { background: #1e293b; }
 
+    /* Analytics */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.1rem; text-align: center; }
+    [data-theme="dark"] .stat-card { background: #0f172a; border-color: #334155; }
+    .stat-card .label { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+    .stat-card.views { border-color: #16a34a; }
+    .stat-card.views .value { color: #16a34a; }
+    [data-theme="dark"] .stat-card.views { border-color: #22c55e; }
+    [data-theme="dark"] .stat-card.views .value { color: #4ade80; }
+    .mod-stat { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid #e2e8f0; }
+    [data-theme="dark"] .mod-stat { border-color: #334155; }
+    .mod-stat:last-child { border-bottom: 0; }
+
     /* Markdown editor */
     .md-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.3rem; }
     .md-pane { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; min-height: 220px; }
@@ -92,6 +106,7 @@
     <div class="tabs">
       <button data-tab="mods" class="active">Mods</button>
       <button data-tab="socials">Social Links</button>
+      <button data-tab="analytics">Analytics</button>
     </div>
 
     <div id="tab-mods">
@@ -170,6 +185,33 @@
         <label>Donate URL</label><input type="url" id="dn-url">
         <button class="btn" id="save-socials-btn">Save Socials</button>
         <div id="social-msg" class="success"></div>
+      </div>
+    </div>
+
+    <div id="tab-analytics" class="hidden">
+      <div class="card">
+        <h2>Analytics</h2>
+        <div class="stat-grid">
+          <div class="stat-card views">
+            <div class="label">Views</div>
+            <div class="value" id="stat-views">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Purchases</div>
+            <div class="value" id="stat-purchases">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Revenue</div>
+            <div class="value" id="stat-revenue">$0</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Mods</div>
+            <div class="value" id="stat-mods">0</div>
+          </div>
+        </div>
+        <h3 style="margin: 0.5rem 0 0.75rem; font-size: 1.1rem;">Per mod</h3>
+        <div id="mod-stats"><p class="muted">Loading…</p></div>
+        <button class="btn" id="refresh-analytics" style="margin-top:1rem;">Refresh</button>
       </div>
     </div>
   </div>
