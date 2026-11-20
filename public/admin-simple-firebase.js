@@ -1,7 +1,7 @@
 // Simple admin: Firebase Auth + Firestore + Cloudflare R2 uploads
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, updatePassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -18,8 +18,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
-const ADMIN_EMAILS = ['okpeidavid7@gmail.com'];
+const MAIN_ADMIN = 'okpeidavid7@gmail.com';
 const UPLOAD_URL = 'https://casualdavid-upload.okpeidavid7.workers.dev/';
+const USERS_WORKER = 'https://casualdavid-admin-users.okpeidavid7.workers.dev/';
 
 const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Survival', 'Magic', 'Technology', 'Adventure', 'Decoration'];
 const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
@@ -30,9 +31,10 @@ let allPurchases = [];
 let modNames = {};
 let analyticsChart = null;
 let analyticsData = { mods: [], purchases: [] };
+let currentAdmin = null;
 
 function showView(id) {
-  ['loading-view', 'login-view', 'dashboard'].forEach((v) => $(v).classList.toggle('hidden', v !== id));
+  ['loading-view', 'login-view', 'change-password-view', 'dashboard'].forEach((v) => $(v).classList.toggle('hidden', v !== id));
 }
 
 function setMsg(id, text, ok) {
@@ -42,8 +44,33 @@ function setMsg(id, text, ok) {
   el.className = ok ? 'success' : 'error';
 }
 
-function isAdmin(user) {
-  return user && ADMIN_EMAILS.includes((user.email || '').toLowerCase());
+function isMainAdmin(user) {
+  return user && (user.email || '').toLowerCase() === MAIN_ADMIN;
+}
+
+async function getAdminProfile(user) {
+  if (!user) return null;
+  if (isMainAdmin(user)) {
+    return { email: user.email, role: 'main', permissions: ['mods', 'socials', 'analytics', 'purchases', 'users'], mustChangePassword: false };
+  }
+  try {
+    const snap = await getDoc(doc(db, 'admins', user.uid));
+    if (snap.exists()) return { uid: user.uid, ...snap.data() };
+  } catch (e) {}
+  return null;
+}
+
+function hasPerm(perm) {
+  if (!currentAdmin) return false;
+  if (currentAdmin.role === 'main') return true;
+  return (currentAdmin.permissions || []).includes(perm);
+}
+
+function applyPermissions() {
+  document.querySelectorAll('.tabs button[data-perm]').forEach(btn => {
+    const perm = btn.dataset.perm;
+    btn.classList.toggle('hidden', !hasPerm(perm));
+  });
 }
 
 function fillSubcategories(type, selected = []) {
@@ -70,16 +97,28 @@ function showScreenshotPreview(urls) {
 
 $('mod-type').addEventListener('change', () => fillSubcategories($('mod-type').value));
 
-onAuthStateChanged(auth, (user) => {
-  if (isAdmin(user)) {
-    showView('dashboard');
-    fillSubcategories('mod');
-    loadMods();
-    loadSocials();
-  } else {
-    if (user) setMsg('login-msg', 'This account is not an admin.');
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    currentAdmin = null;
     showView('login-view');
+    return;
   }
+  const profile = await getAdminProfile(user);
+  if (!profile) {
+    setMsg('login-msg', 'This account is not an admin.');
+    showView('login-view');
+    return;
+  }
+  currentAdmin = profile;
+  if (profile.mustChangePassword) {
+    showView('change-password-view');
+    return;
+  }
+  showView('dashboard');
+  applyPermissions();
+  fillSubcategories('mod');
+  if (hasPerm('mods')) loadMods();
+  if (hasPerm('socials')) loadSocials();
 });
 
 $('google-btn').addEventListener('click', async () => {
@@ -99,15 +138,130 @@ $('login-form').addEventListener('submit', async (e) => {
   }
 });
 
+$('change-pw-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const pw = $('new-password').value;
+  const confirm = $('confirm-password').value;
+  if (pw !== confirm) {
+    setMsg('change-pw-msg', 'Passwords do not match.');
+    return;
+  }
+  if (pw.length < 8) {
+    setMsg('change-pw-msg', 'Password must be at least 8 characters.');
+    return;
+  }
+  const btn = $('change-pw-btn');
+  btn.disabled = true;
+  setMsg('change-pw-msg', 'Saving…', true);
+  try {
+    await updatePassword(auth.currentUser, pw);
+    await setDoc(doc(db, 'admins', auth.currentUser.uid), { mustChangePassword: false }, { merge: true });
+    currentAdmin.mustChangePassword = false;
+    setMsg('change-pw-msg', 'Password updated!', true);
+    setTimeout(() => {
+      showView('dashboard');
+      applyPermissions();
+      fillSubcategories('mod');
+      if (hasPerm('mods')) loadMods();
+      if (hasPerm('socials')) loadSocials();
+    }, 600);
+  } catch (err) {
+    setMsg('change-pw-msg', err.message || 'Failed to update password');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 $('logout-btn').addEventListener('click', () => signOut(auth));
 
 function showTab(tab) {
-  ['mods', 'socials', 'analytics', 'purchases'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  if (!hasPerm(tab)) return;
+  ['mods', 'socials', 'analytics', 'purchases', 'users'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'analytics') loadAnalytics();
   if (tab === 'purchases') loadPurchases();
+  if (tab === 'users') loadUsers();
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+async function loadUsers() {
+  const list = $('users-list');
+  list.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const snap = await getDocs(collection(db, 'admins'));
+    if (snap.empty) {
+      list.innerHTML = '<p class="muted">No sub-users yet.</p>';
+      return;
+    }
+    list.innerHTML = snap.docs.map(d => {
+      const u = d.data();
+      if (u.role === 'main') return '';
+      const perms = (u.permissions || []).join(', ') || 'none';
+      const status = u.mustChangePassword ? ' <span class="test-badge">temp password</span>' : '';
+      return `<div class="user-item">
+        <div>
+          <strong>${u.email || d.id}</strong>${status}
+          <div class="muted">${perms}</div>
+        </div>
+        <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-user="${d.id}">Remove</button>
+      </div>`;
+    }).filter(Boolean).join('') || '<p class="muted">No sub-users yet.</p>';
+    list.querySelectorAll('[data-del-user]').forEach(b => b.addEventListener('click', () => deleteUser(b.dataset.delUser)));
+  } catch (err) {
+    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load users') + '</p>';
+  }
+}
+
+$('add-user-btn').addEventListener('click', async () => {
+  const email = $('subuser-email').value.trim().toLowerCase();
+  if (!email) {
+    setMsg('user-msg', 'Enter an email.');
+    return;
+  }
+  const permissions = [];
+  if ($('perm-mods').checked) permissions.push('mods');
+  if ($('perm-socials').checked) permissions.push('socials');
+  if ($('perm-analytics').checked) permissions.push('analytics');
+  if ($('perm-purchases').checked) permissions.push('purchases');
+  if (!permissions.length) {
+    setMsg('user-msg', 'Select at least one permission.');
+    return;
+  }
+  const btn = $('add-user-btn');
+  btn.disabled = true;
+  setMsg('user-msg', 'Creating user…', true);
+  try {
+    const res = await fetch(USERS_WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, permissions })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to create user');
+    setMsg('user-msg', data.message || 'User created and email sent!', true);
+    $('subuser-email').value = '';
+    $('perm-mods').checked = false;
+    $('perm-socials').checked = false;
+    $('perm-analytics').checked = false;
+    $('perm-purchases').checked = false;
+    loadUsers();
+  } catch (err) {
+    setMsg('user-msg', err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function deleteUser(uid) {
+  if (!confirm('Remove this user? They will no longer be able to access the admin page.')) return;
+  try {
+    await fetch(USERS_WORKER + '?uid=' + encodeURIComponent(uid), { method: 'DELETE' });
+    await deleteDoc(doc(db, 'admins', uid));
+    loadUsers();
+  } catch (err) {
+    alert(err.message || 'Failed to remove user');
+  }
+}
 
 function getTimeframeStart(tf) {
   const now = Date.now();
@@ -212,7 +366,6 @@ function renderAnalytics() {
   $('stat-purchases').textContent = filteredPurchases.length;
   $('stat-revenue').textContent = '$' + totalRevenue.toFixed(2);
 
-  // Chart: purchases over time
   const buckets = {};
   filteredPurchases.forEach(p => {
     const ts = p.paidAt || p.purchasedAt || 0;
