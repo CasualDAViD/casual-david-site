@@ -14,7 +14,7 @@
     .gallery { background: rgba(255,255,255,0.7); backdrop-filter: blur(16px); border-radius: 20px; border: 1px solid rgba(255,255,255,0.8); padding: 1.25rem; position: relative; }
     [data-theme="dark"] .gallery { background: rgba(30,41,59,0.8); border-color: rgba(255,255,255,0.1); }
     .gallery-main { width: 100%; aspect-ratio: 16 / 9; max-height: 70vh; background: #0f172a; border-radius: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 0.75rem; position: relative; cursor: zoom-in; }
-    .gallery-main img { width: 100%; height: 100%; object-fit: contain; }
+    .gallery-main img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
     .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.85); border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; z-index: 2; }
     .gallery-nav.prev { left: 0.5rem; }
     .gallery-nav.next { right: 0.5rem; }
@@ -59,15 +59,28 @@
     .desc { margin-top: 1.5rem; color: #475569; line-height: 1.6; }
     [data-theme="dark"] .desc { color: #cbd5e1; }
     .desc a { color: #2563eb; text-decoration: underline; }
-    .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
     .lightbox.open { display: flex; }
-    .lightbox-inner { position: relative; max-width: 95vw; max-height: 95vh; }
-    .lightbox-inner img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 8px; }
-    .lb-close { position: absolute; top: -48px; right: 0; background: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; }
-    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; background: white; border: none; cursor: pointer; font-size: 1.3rem; }
-    .lb-nav.prev { left: -56px; }
-    .lb-nav.next { right: -56px; }
-    @media (max-width: 768px) { .product-layout { grid-template-columns: 1fr; } .lb-nav.prev { left: 8px; } .lb-nav.next { right: 8px; } .gallery-main { aspect-ratio: 16 / 9; max-height: 50vh; } }
+    .lightbox-inner { position: relative; max-width: 92vw; max-height: 92vh; }
+    .lightbox-inner img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: 6px; display: block; }
+    .lb-close { position: absolute; top: -50px; right: 0; background: #fff; border: none; width: 42px; height: 42px; border-radius: 50%; font-size: 1.4rem; cursor: pointer; }
+    .lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 46px; height: 46px; border-radius: 50%; background: #fff; border: none; cursor: pointer; font-size: 1.4rem; }
+    .lb-nav.prev { left: -58px; }
+    .lb-nav.next { right: -58px; }
+    @media (max-width: 768px) {
+      .product-layout { grid-template-columns: 1fr; }
+      .lb-nav.prev { left: 10px; }
+      .lb-nav.next { right: 10px; }
+      .gallery-main { aspect-ratio: 16 / 9; max-height: 50vh; }
+    }
   </style>
 </head>
 <body>
@@ -109,10 +122,10 @@
 
   <div class="lightbox" id="lightbox">
     <div class="lightbox-inner">
-      <button class="lb-close" onclick="closeLightbox()">✕</button>
-      <button class="lb-nav prev" onclick="lbPrev()">←</button>
+      <button class="lb-close" id="lb-close">✕</button>
+      <button class="lb-nav prev" id="lb-prev">←</button>
       <img id="lb-img" src="" alt="">
-      <button class="lb-nav next" onclick="lbNext()">→</button>
+      <button class="lb-nav next" id="lb-next">→</button>
     </div>
   </div>
 
@@ -175,6 +188,53 @@
       return '';
     }
 
+    function openLightbox(i) {
+      if (!images[i]) return;
+      currentIndex = i;
+      document.getElementById('lb-img').src = images[currentIndex];
+      document.getElementById('lightbox').classList.add('open');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.remove('open');
+    }
+
+    function lbNext() {
+      currentIndex = (currentIndex + 1) % images.length;
+      document.getElementById('lb-img').src = images[currentIndex];
+      updateGallery();
+    }
+
+    function lbPrev() {
+      currentIndex = (currentIndex - 1 + images.length) % images.length;
+      document.getElementById('lb-img').src = images[currentIndex];
+      updateGallery();
+    }
+
+    function updateGallery() {
+      const main = document.getElementById('main-img');
+      const img = main && main.querySelector('img');
+      if (images[currentIndex] && img) img.src = images[currentIndex];
+      document.querySelectorAll('#thumbs img').forEach((el, i) => {
+        el.classList.toggle('active', i === currentIndex);
+      });
+    }
+
+    function goTo(i) {
+      currentIndex = i;
+      updateGallery();
+    }
+
+    function nextImg() {
+      currentIndex = (currentIndex + 1) % images.length;
+      updateGallery();
+    }
+
+    function prevImg() {
+      currentIndex = (currentIndex - 1 + images.length) % images.length;
+      updateGallery();
+    }
+
     async function loadProduct() {
       const box = document.getElementById('product-content');
       const id = params.get('id');
@@ -209,13 +269,13 @@
       box.innerHTML = `
         <div class="product-layout">
           <div class="gallery">
-            <div class="gallery-main" id="main-img" onclick="openLightbox(currentIndex)">
+            <div class="gallery-main" id="main-img">
               ${images[0] ? `<img src="${escapeHtml(images[0])}" alt="">` : '<span style="font-size:3rem;">📦</span>'}
-              ${images.length > 1 ? `<button class="gallery-nav prev" onclick="event.stopPropagation(); prevImg()">←</button>
-              <button class="gallery-nav next" onclick="event.stopPropagation(); nextImg()">→</button>` : ''}
+              ${images.length > 1 ? `<button class="gallery-nav prev" id="nav-prev">←</button>
+              <button class="gallery-nav next" id="nav-next">→</button>` : ''}
             </div>
             <div class="gallery-thumbs" id="thumbs">
-              ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" onclick="goTo(${i})" alt="">`).join('')}
+              ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" data-idx="${i}" alt="">`).join('')}
             </div>
             ${donate ? `<a class="donate-btn" href="${escapeHtml(donate)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Donate</a>` : ''}
           </div>
@@ -241,32 +301,26 @@
           </div>
         </div>
       `;
+
+      document.getElementById('main-img').addEventListener('click', () => openLightbox(currentIndex));
+      const prevBtn = document.getElementById('nav-prev');
+      const nextBtn = document.getElementById('nav-next');
+      if (prevBtn) prevBtn.addEventListener('click', (e) => { e.stopPropagation(); prevImg(); });
+      if (nextBtn) nextBtn.addEventListener('click', (e) => { e.stopPropagation(); nextImg(); });
+      document.querySelectorAll('#thumbs img').forEach(el => {
+        el.addEventListener('click', () => goTo(Number(el.dataset.idx)));
+      });
+
       const buy = document.getElementById('buy-now');
       if (buy) buy.addEventListener('click', () => { location.href = 'checkout.html?id=' + encodeURIComponent(mod.id); });
     }
 
-    function updateGallery() {
-      const main = document.getElementById('main-img');
-      const img = main && main.querySelector('img');
-      if (images[currentIndex] && img) img.src = images[currentIndex];
-      document.querySelectorAll('#thumbs img').forEach((el, i) => {
-        el.classList.toggle('active', i === currentIndex);
-      });
-    }
-
-    window.goTo = (i) => { currentIndex = i; updateGallery(); };
-    window.nextImg = () => { currentIndex = (currentIndex + 1) % images.length; updateGallery(); };
-    window.prevImg = () => { currentIndex = (currentIndex - 1 + images.length) % images.length; updateGallery(); };
-
-    window.openLightbox = (i) => {
-      if (!images[i]) return;
-      currentIndex = i;
-      document.getElementById('lb-img').src = images[currentIndex];
-      document.getElementById('lightbox').classList.add('open');
-    };
-    window.closeLightbox = () => { document.getElementById('lightbox').classList.remove('open'); };
-    window.lbNext = () => { currentIndex = (currentIndex + 1) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); };
-    window.lbPrev = () => { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); };
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    document.getElementById('lb-prev').addEventListener('click', lbPrev);
+    document.getElementById('lb-next').addEventListener('click', lbNext);
+    document.getElementById('lightbox').addEventListener('click', (e) => {
+      if (e.target.id === 'lightbox') closeLightbox();
+    });
 
     loadProduct();
   </script>
