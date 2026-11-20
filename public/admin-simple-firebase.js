@@ -26,6 +26,7 @@ const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Sur
 const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
 
 const ALL_PERMS = ['delete-mod', 'edit-mod', 'donate', 'socials', 'analytics', 'purchases', 'users', 'mods'];
+const MOD_PERMS = ['mods', 'edit-mod', 'delete-mod', 'donate'];
 
 const $ = (id) => document.getElementById(id);
 
@@ -68,12 +69,18 @@ function hasPerm(perm) {
   return (currentAdmin.permissions || []).includes(perm);
 }
 
+function hasAnyModPerm() {
+  return MOD_PERMS.some(p => hasPerm(p));
+}
+
 function applyPermissions() {
   document.querySelectorAll('.tabs button[data-perm]').forEach(btn => {
     const perm = btn.dataset.perm;
-    btn.classList.toggle('hidden', !hasPerm(perm));
+    let show = false;
+    if (perm === 'mods') show = hasAnyModPerm();
+    else show = hasPerm(perm);
+    btn.classList.toggle('hidden', !show);
   });
-  // Hide donate field if no permission
   const donateLabel = $('donate-label');
   const donateInput = $('mod-donate');
   if (donateLabel && donateInput) {
@@ -127,7 +134,7 @@ onAuthStateChanged(auth, async (user) => {
   showView('dashboard');
   applyPermissions();
   fillSubcategories('mod');
-  if (hasPerm('mods') || hasPerm('edit-mod') || hasPerm('delete-mod')) loadMods();
+  if (hasAnyModPerm()) loadMods();
   if (hasPerm('socials')) loadSocials();
 });
 
@@ -172,7 +179,7 @@ $('change-pw-form').addEventListener('submit', async (e) => {
       showView('dashboard');
       applyPermissions();
       fillSubcategories('mod');
-      if (hasPerm('mods') || hasPerm('edit-mod') || hasPerm('delete-mod')) loadMods();
+      if (hasAnyModPerm()) loadMods();
       if (hasPerm('socials')) loadSocials();
     }, 600);
   } catch (err) {
@@ -185,7 +192,8 @@ $('change-pw-form').addEventListener('submit', async (e) => {
 $('logout-btn').addEventListener('click', () => signOut(auth));
 
 function showTab(tab) {
-  if (!hasPerm(tab)) return;
+  if (tab === 'mods' && !hasAnyModPerm()) return;
+  if (tab !== 'mods' && !hasPerm(tab)) return;
   ['mods', 'socials', 'analytics', 'purchases', 'users'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'analytics') loadAnalytics();
