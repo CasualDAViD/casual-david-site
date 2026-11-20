@@ -97,10 +97,61 @@ $('login-form').addEventListener('submit', async (e) => {
 $('logout-btn').addEventListener('click', () => signOut(auth));
 
 function showTab(tab) {
-  ['mods', 'socials'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['mods', 'socials', 'analytics'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'analytics') loadAnalytics();
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+async function loadAnalytics() {
+  try {
+    const modsSnap = await getDocs(collection(db, 'mods'));
+    const purchasesSnap = await getDocs(collection(db, 'purchases'));
+
+    let totalViews = 0;
+    let totalRevenue = 0;
+    const modMap = {};
+
+    modsSnap.forEach(d => {
+      const m = d.data();
+      modMap[d.id] = { name: m.name || 'Mod', views: m.views || 0, purchases: 0, revenue: 0 };
+      totalViews += m.views || 0;
+    });
+
+    purchasesSnap.forEach(d => {
+      const p = d.data();
+      totalRevenue += Number(p.amount || 0);
+      if (modMap[p.modId]) {
+        modMap[p.modId].purchases += 1;
+        modMap[p.modId].revenue += Number(p.amount || 0);
+      }
+    });
+
+    $('stat-views').textContent = totalViews;
+    $('stat-purchases').textContent = purchasesSnap.size;
+    $('stat-revenue').textContent = '$' + totalRevenue.toFixed(2);
+    $('stat-mods').textContent = modsSnap.size;
+
+    const box = $('mod-stats');
+    const rows = Object.values(modMap).sort((a, b) => b.views - a.views);
+    if (!rows.length) {
+      box.innerHTML = '<p class="muted">No mods yet.</p>';
+      return;
+    }
+    box.innerHTML = rows.map(m => `
+      <div class="mod-stat">
+        <div><strong>${m.name}</strong></div>
+        <div class="muted">${m.views} views • ${m.purchases} purchases • $${m.revenue.toFixed(2)}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    $('mod-stats').innerHTML = '<p class="error">' + (err.message || 'Failed to load analytics') + '</p>';
+  }
+}
+
+if ($('refresh-analytics')) {
+  $('refresh-analytics').addEventListener('click', loadAnalytics);
+}
 
 function updatePreview() {
   const md = $('mod-desc').value || '';
@@ -215,6 +266,7 @@ $('save-mod-btn').addEventListener('click', async () => {
       category: type,
       updatedAt: Date.now(),
       unlisted: false,
+      views: 0,
       versions: [{ name: '1.0', price, displayName: '', fileUrl: '', fileName: '' }]
     };
 
