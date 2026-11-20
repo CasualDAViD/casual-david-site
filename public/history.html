@@ -14,6 +14,7 @@
     [data-theme="dark"] .order-row { background: rgba(30,41,59,0.7); border-color: rgba(255,255,255,0.1); }
     .order-icon { width: 48px; height: 48px; border-radius: 10px; background: #e0e7ff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; font-size: 1.4rem; }
     .order-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .ref-id { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.78rem; color: #64748b; word-break: break-all; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
@@ -126,6 +127,7 @@
           const ts = p.paidAt || p.purchasedAt;
           const date = ts ? new Date(ts).toLocaleDateString() : '';
           const amount = Number(p.amount || 0);
+          const ref = p.reference || '';
 
           html += `
             <div class="order-row">
@@ -133,6 +135,7 @@
               <div style="flex:1; min-width:180px;">
                 <strong>${escapeHtml(mod.name || 'Mod')}</strong>
                 <div style="font-size:0.85rem; color:#64748b;">${date} • $${amount.toFixed(2)}</div>
+                ${ref ? `<div class="ref-id">Ref: ${escapeHtml(ref)}</div>` : ''}
               </div>
               ${mod.fileUrl ? `<a class="buy-btn" style="text-decoration:none;" href="${escapeHtml(mod.fileUrl)}" download="${escapeHtml(mod.fileName || 'download')}">Download</a>` : ''}
             </div>
