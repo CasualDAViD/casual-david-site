@@ -32,7 +32,7 @@
         </div>
       </a>
       <nav class="nav-pill">
-        <a href="content.html">Content</a>
+        <a href="content.html">Socials</a>
         <a href="mods.html">Mods</a>
         <a href="about.html">About</a>
       </nav>
@@ -51,21 +51,29 @@
   <script type="module" src="firebase-mods.js"></script>
   <script type="module">
     import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
     const PAYSTACK_WORKER = 'https://casualdavid-paystack.okpeidavid7.workers.dev/';
     const params = new URLSearchParams(location.search);
     const reference = params.get('reference') || params.get('trxref');
 
-    async function waitForAuth(maxWait = 4000) {
+    async function waitForAuth(maxWait = 5000) {
       return new Promise((resolve) => {
         const start = Date.now();
         const check = () => {
-          if (window.firebaseAuth && window.firebaseAuth.auth) {
-            const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-              unsub();
-              resolve(user);
-            });
+          if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
+            setTimeout(() => {
+              const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+                if (user) {
+                  unsub();
+                  resolve(user);
+                  return;
+                }
+                if (Date.now() - start > maxWait) {
+                  unsub();
+                  resolve(null);
+                }
+              });
+            }, 200);
             return;
           }
           if (Date.now() - start > maxWait) { resolve(null); return; }
@@ -100,6 +108,7 @@
         const fileUrl = mod?.fileUrl || (mod?.versions?.[0]?.fileUrl);
         const fileName = mod?.fileName || (mod?.versions?.[0]?.fileName) || 'download';
         const thankYou = mod?.thankYou || 'Thank you for your purchase! Click the download button to get your mod.';
+        const amount = data.amount ? data.amount / 100 : (mod?.price || 0);
 
         // Record purchase if user is signed in
         const user = await waitForAuth();
@@ -107,9 +116,12 @@
           try {
             const db = getFirestore();
             await setDoc(doc(db, 'purchases', user.uid + '_' + modId), {
+              uid: user.uid,
               userId: user.uid,
               modId,
               reference,
+              amount,
+              paidAt: Date.now(),
               purchasedAt: Date.now()
             });
           } catch (e) { console.warn('Could not save purchase', e); }
@@ -121,7 +133,7 @@
               <div class="check">✅</div>
               <h2>Payment successful</h2>
               ${fileUrl ? `<a class="btn" href="${fileUrl}" download="${fileName}">Download mod</a>` : '<p>File link will be available shortly.</p>'}
-              <div style="margin-top:1.5rem;"><a href="mods.html" style="color:#2563eb;">Back to mods</a></div>
+              <div style="margin-top:1.5rem;"><a href="history.html" style="color:#2563eb;">View purchase history</a></div>
             </div>
             <div class="info-side">
               ${mod?.icon ? `<img class="mod-icon" src="${mod.icon}" alt="">` : ''}
