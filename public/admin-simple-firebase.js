@@ -114,16 +114,22 @@ async function loadAnalytics() {
 
     modsSnap.forEach(d => {
       const m = d.data();
-      modMap[d.id] = { name: m.name || 'Mod', views: m.views || 0, purchases: 0, revenue: 0 };
+      modMap[d.id] = { name: m.name || 'Mod', views: m.views || 0, purchases: 0, revenue: 0, testRevenue: 0 };
       totalViews += m.views || 0;
     });
 
     purchasesSnap.forEach(d => {
       const p = d.data();
-      totalRevenue += Number(p.amount || 0);
+      const amt = Number(p.amount || 0);
+      // Treat large amounts (old Naira conversions) or zero as test for now
+      const isTest = amt === 0 || amt > 1000 || (p.reference && String(p.reference).startsWith('TEST'));
       if (modMap[p.modId]) {
         modMap[p.modId].purchases += 1;
-        modMap[p.modId].revenue += Number(p.amount || 0);
+        if (isTest) modMap[p.modId].testRevenue += amt;
+        else {
+          modMap[p.modId].revenue += amt;
+          totalRevenue += amt;
+        }
       }
     });
 
@@ -138,12 +144,15 @@ async function loadAnalytics() {
       box.innerHTML = '<p class="muted">No mods yet.</p>';
       return;
     }
-    box.innerHTML = rows.map(m => `
-      <div class="mod-stat">
-        <div><strong>${m.name}</strong></div>
-        <div class="muted">${m.views} views • ${m.purchases} purchases • $${m.revenue.toFixed(2)}</div>
-      </div>
-    `).join('');
+    box.innerHTML = rows.map(m => {
+      const testLabel = m.testRevenue > 0 ? ` <span style="color:#f59e0b;">test $${m.testRevenue.toFixed(2)}</span>` : '';
+      return `
+        <div class="mod-stat">
+          <div><strong>${m.name}</strong></div>
+          <div class="muted">${m.views} views • ${m.purchases} purchases • $${m.revenue.toFixed(2)}${testLabel}</div>
+        </div>
+      `;
+    }).join('');
   } catch (err) {
     $('mod-stats').innerHTML = '<p class="error">' + (err.message || 'Failed to load analytics') + '</p>';
   }
