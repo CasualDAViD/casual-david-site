@@ -34,13 +34,11 @@ async function createAuthUser(email, password) {
 }
 
 async function deleteAuthUser(uid) {
-  // Identity Toolkit delete by localId (requires the project's API key)
   const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ localId: uid })
   });
-  // Ignore failures so Firestore cleanup can still proceed
   return res.ok;
 }
 
@@ -76,7 +74,7 @@ async function sendEmail(env, to, tempPassword) {
     <p>You've been added as an admin on Casual_DAViD.</p>
     <p><strong>Email:</strong> ${to}</p>
     <p><strong>Temporary password:</strong> ${tempPassword}</p>
-    <p>Go to <a href="https://casualdavid.com.ng/admin.html">the admin page</a>, sign in with this password, then set a new password. The temporary password will stop working after that.</p>
+    <p>Go to <a href="https://casualdavid.com.ng/privateadmin">the admin page</a>, sign in with this password, then set a new password. The temporary password will stop working after that.</p>
   `;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
