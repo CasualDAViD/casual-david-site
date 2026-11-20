@@ -33,6 +33,17 @@ async function createAuthUser(email, password) {
   return data;
 }
 
+async function deleteAuthUser(uid) {
+  // Identity Toolkit delete by localId (requires the project's API key)
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${FIREBASE_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ localId: uid })
+  });
+  // Ignore failures so Firestore cleanup can still proceed
+  return res.ok;
+}
+
 async function writeAdminDoc(uid, idToken, email, permissions) {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/admins/${uid}`;
   const body = {
@@ -118,6 +129,7 @@ export default {
     if (request.method === 'DELETE') {
       const uid = url.searchParams.get('uid');
       if (!uid) return Response.json({ success: false, error: 'uid required' }, { status: 400, headers: cors });
+      await deleteAuthUser(uid);
       return Response.json({ success: true }, { headers: cors });
     }
 
