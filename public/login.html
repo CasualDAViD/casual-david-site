@@ -58,9 +58,7 @@
     </div>
   </div>
   <script type="module" src="firebase-auth.js"></script>
-  <script type="module">
-    import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-
+  <script>
     function setMsg(text, ok) {
       const el = document.getElementById('msg');
       el.textContent = text || '';
@@ -69,12 +67,32 @@
 
     const next = new URLSearchParams(location.search).get('next') || 'index.html';
 
+    function waitForFirebase(maxWait = 5000) {
+      return new Promise((resolve) => {
+        const start = Date.now();
+        const check = () => {
+          if (window.firebaseAuth && window.firebaseAuth.auth) {
+            resolve(window.firebaseAuth);
+            return;
+          }
+          if (Date.now() - start > maxWait) {
+            resolve(null);
+            return;
+          }
+          setTimeout(check, 100);
+        };
+        check();
+      });
+    }
+
     document.getElementById('google-btn').addEventListener('click', async () => {
+      const fb = await waitForFirebase();
+      if (!fb) { setMsg('Auth is still loading. Try again in a moment.'); return; }
       try {
-        await signInWithPopup(window.firebaseAuth.auth, window.firebaseAuth.googleProvider);
+        await fb.signInWithPopup(fb.auth, fb.googleProvider);
         location.href = next;
       } catch (err) {
-        setMsg(err.message);
+        setMsg(err.message || 'Google sign-in failed');
       }
     });
 
@@ -83,15 +101,17 @@
       const btn = document.getElementById('submit');
       btn.disabled = true;
       setMsg('');
+      const fb = await waitForFirebase();
+      if (!fb) { setMsg('Auth is still loading. Try again.'); btn.disabled = false; return; }
       try {
-        await signInWithEmailAndPassword(
-          window.firebaseAuth.auth,
+        await fb.signInWithEmailAndPassword(
+          fb.auth,
           document.getElementById('email').value,
           document.getElementById('password').value
         );
         location.href = next;
       } catch (err) {
-        setMsg(err.message);
+        setMsg(err.message || 'Sign-in failed');
         btn.disabled = false;
       }
     });
