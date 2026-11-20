@@ -781,7 +781,7 @@ async function deleteMod(id) {
 }
 
 const SOCIAL = {
-  youtube: 'yt-url', tiktok: 'tt-url', discord: 'dc-url', modrinth: 'mr-url',
+  youtube: 'yt-url', youtubeHandle: 'yt-handle', tiktok: 'tt-url', tiktokHandle: 'tt-handle', discord: 'dc-url', modrinth: 'mr-url',
   curseforge: 'cf-url', personalDiscord: 'pd-url', email: 'em-url', donate: 'dn-url'
 };
 
