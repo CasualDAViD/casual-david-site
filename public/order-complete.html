@@ -108,7 +108,10 @@
         const fileUrl = mod?.fileUrl || (mod?.versions?.[0]?.fileUrl);
         const fileName = mod?.fileName || (mod?.versions?.[0]?.fileName) || 'download';
         const thankYou = mod?.thankYou || 'Thank you for your purchase! Click the download button to get your mod.';
-        const amount = data.amount ? data.amount / 100 : (mod?.price || 0);
+
+        // Use the original USD price from the mod, not the converted Naira amount from Paystack
+        const versions = mod?.versions || [];
+        const amount = versions.length ? Number(versions[0].price) : Number(mod?.price || 0);
 
         // Record purchase if user is signed in
         const user = await waitForAuth();
