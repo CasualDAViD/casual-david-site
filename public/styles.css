@@ -1009,3 +1009,9 @@ body {
 [data-theme="dark"] #account-btn svg {
   fill: #f1f5f9;
 }
+
+/* Sticky footer */
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; min-height: 100vh; }
+body > main, body > .section, body > .checkout-page, body > .admin-wrap { flex: 1; }
+.footer { margin-top: auto; }
