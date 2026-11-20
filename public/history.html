@@ -71,14 +71,19 @@
 
     function waitForAuth() {
       return new Promise((resolve) => {
+        let attempts = 0;
         const check = () => {
-          if (window.firebaseAuth && window.firebaseAuth.auth) {
+          if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
+            // Wait for the first real auth state (Firebase restores session async)
             const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
               unsub();
               resolve(user);
             });
-          } else {
+          } else if (attempts < 50) {
+            attempts++;
             setTimeout(check, 100);
+          } else {
+            resolve(null);
           }
         };
         check();
@@ -88,7 +93,7 @@
     async function load() {
       const user = await waitForAuth();
       if (!user) {
-        location.replace('login.html?next=' + encodeURIComponent('/history.html'));
+        location.replace('login.html?next=' + encodeURIComponent(location.pathname + location.search));
         return;
       }
 
