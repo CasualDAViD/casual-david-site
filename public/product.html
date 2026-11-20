@@ -28,7 +28,7 @@
     .product-price { font-size: 2rem; font-weight: 700; color: var(--primary); margin: 1rem 0; }
     .delivery { display: flex; justify-content: space-between; padding: 0.75rem 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin: 1rem 0; font-size: 0.95rem; }
     [data-theme="dark"] .delivery { border-color: #334155; }
-    .buy-now { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 0.5rem; }
+    .buy-now { width: 100%; padding: 0.9rem; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1.05rem; cursor: pointer; margin-top: 0.5rem; text-decoration: none; display: inline-block; text-align: center; }
     .buy-now:hover { background: #1d4ed8; }
     .desc { margin-top: 1.5rem; color: #475569; line-height: 1.6; }
     [data-theme="dark"] .desc { color: #cbd5e1; }
@@ -99,7 +99,9 @@
   <script type="module" src="firebase-auth.js"></script>
   <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
-  <script>
+  <script type="module">
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
     const params = new URLSearchParams(location.search);
     let images = [];
     let currentIndex = 0;
@@ -113,6 +115,17 @@
         .replace(/^## (.+)$/gm, '<h2>$1</h2>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/\n/g, '<br>');
+    }
+
+    async function checkOwned(modId) {
+      if (!window.firebaseAuth || !window.firebaseAuth.auth) return false;
+      const user = window.firebaseAuth.auth.currentUser;
+      if (!user) return false;
+      try {
+        const db = getFirestore();
+        const snap = await getDoc(doc(db, 'purchases', user.uid + '_' + modId));
+        return snap.exists();
+      } catch (e) { return false; }
     }
 
     async function loadProduct() {
@@ -138,6 +151,9 @@
       const versions = mod.versions || [];
       const price = versions.length ? versions[0].price : (mod.price || 0);
       const hasFile = (versions.length && versions[0].fileUrl) || mod.fileUrl;
+      const owned = await checkOwned(mod.id);
+      const fileUrl = mod.fileUrl || (versions[0] && versions[0].fileUrl);
+      const fileName = mod.fileName || (versions[0] && versions[0].fileName) || 'download';
       images = [mod.icon, ...(mod.screenshots || [])].filter(Boolean);
       document.title = mod.name + ' • Casual_DAViD';
       box.innerHTML = `
@@ -155,10 +171,12 @@
           <div class="product-info">
             <h1>${escapeHtml(mod.name)}</h1>
             <span class="mod-cat">${escapeHtml(mod.mainCategory || mod.category || 'Mod')}</span>
-            <div class="product-price">${formatPrice(price, currency)}</div>
+            <div class="product-price">${owned ? 'Owned' : formatPrice(price, currency)}</div>
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
             ${hasFile
-              ? `<button class="buy-now" id="buy-now">Buy now</button>`
+              ? (owned
+                  ? `<a class="buy-now" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">Download</a>`
+                  : `<button class="buy-now" id="buy-now">Buy now</button>`)
               : `<button class="buy-now" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>`}
             <div class="desc">
               <h3 style="margin-bottom:0.5rem;">Description</h3>
@@ -180,19 +198,19 @@
       });
     }
 
-    function goTo(i) { currentIndex = i; updateGallery(); }
-    function nextImg() { currentIndex = (currentIndex + 1) % images.length; updateGallery(); }
-    function prevImg() { currentIndex = (currentIndex - 1 + images.length) % images.length; updateGallery(); }
+    window.goTo = (i) => { currentIndex = i; updateGallery(); };
+    window.nextImg = () => { currentIndex = (currentIndex + 1) % images.length; updateGallery(); };
+    window.prevImg = () => { currentIndex = (currentIndex - 1 + images.length) % images.length; updateGallery(); };
 
-    function openLightbox(i) {
+    window.openLightbox = (i) => {
       if (!images[i]) return;
       currentIndex = i;
       document.getElementById('lb-img').src = images[currentIndex];
       document.getElementById('lightbox').classList.add('open');
-    }
-    function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
-    function lbNext() { currentIndex = (currentIndex + 1) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
-    function lbPrev() { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); }
+    };
+    window.closeLightbox = () => { document.getElementById('lightbox').classList.remove('open'); };
+    window.lbNext = () => { currentIndex = (currentIndex + 1) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); };
+    window.lbPrev = () => { currentIndex = (currentIndex - 1 + images.length) % images.length; document.getElementById('lb-img').src = images[currentIndex]; updateGallery(); };
 
     loadProduct();
   </script>
