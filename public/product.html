@@ -138,7 +138,7 @@
   <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script type="module">
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
     const params = new URLSearchParams(location.search);
     let images = [];
@@ -173,6 +173,13 @@
         const snap = await getDoc(doc(db, 'purchases', user.uid + '_' + modId));
         return snap.exists();
       } catch (e) { return false; }
+    }
+
+    async function trackView(modId) {
+      try {
+        const db = getFirestore();
+        await updateDoc(doc(db, 'mods', modId), { views: increment(1) });
+      } catch (e) {}
     }
 
     async function getDonateLink() {
@@ -252,6 +259,14 @@
         box.innerHTML = '<p>Mod not found.</p>';
         return;
       }
+
+      // Track view (once per session per mod)
+      const viewKey = 'viewed_' + id;
+      if (!sessionStorage.getItem(viewKey)) {
+        trackView(id);
+        sessionStorage.setItem(viewKey, '1');
+      }
+
       const currency = getCurrency();
       const versions = mod.versions || [];
       const price = versions.length ? versions[0].price : (mod.price || 0);
