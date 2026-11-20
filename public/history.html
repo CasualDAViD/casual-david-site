@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Purchase History • Casual_DAViD</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="stylesheet" href="styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
   <style>
@@ -103,14 +104,12 @@
 
       try {
         const db = getFirestore();
-        // Query only this user's purchases (required by Firestore rules)
         const q = query(collection(db, 'purchases'), where('userId', '==', user.uid));
         const snap = await getDocs(q);
 
         const mine = [];
         snap.forEach(d => mine.push(d.data()));
 
-        // Fallback for older docs that used 'uid' instead of 'userId'
         if (!mine.length) {
           const q2 = query(collection(db, 'purchases'), where('uid', '==', user.uid));
           const snap2 = await getDocs(q2);
