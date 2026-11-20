@@ -26,6 +26,9 @@ const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'W
 
 const $ = (id) => document.getElementById(id);
 
+let allPurchases = [];
+let modNames = {};
+
 function showView(id) {
   ['loading-view', 'login-view', 'dashboard'].forEach((v) => $(v).classList.toggle('hidden', v !== id));
 }
@@ -97,9 +100,10 @@ $('login-form').addEventListener('submit', async (e) => {
 $('logout-btn').addEventListener('click', () => signOut(auth));
 
 function showTab(tab) {
-  ['mods', 'socials', 'analytics'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
+  ['mods', 'socials', 'analytics', 'purchases'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== tab));
   document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
   if (tab === 'analytics') loadAnalytics();
+  if (tab === 'purchases') loadPurchases();
 }
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -159,6 +163,85 @@ async function loadAnalytics() {
 
 if ($('refresh-analytics')) {
   $('refresh-analytics').addEventListener('click', loadAnalytics);
+}
+
+async function loadPurchases() {
+  const list = $('purchase-list');
+  list.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    // Load mod names for display
+    const modsSnap = await getDocs(collection(db, 'mods'));
+    modNames = {};
+    modsSnap.forEach(d => { modNames[d.id] = d.data().name || 'Mod'; });
+
+    const snap = await getDocs(collection(db, 'purchases'));
+    allPurchases = [];
+    snap.forEach(d => {
+      const p = d.data();
+      allPurchases.push({
+        id: d.id,
+        displayName: p.displayName || '',
+        email: p.email || '',
+        modId: p.modId || '',
+        modName: p.modName || modNames[p.modId] || 'Unknown mod',
+        reference: p.reference || '',
+        amount: Number(p.amount || 0),
+        test: p.test === true,
+        paidAt: p.paidAt || p.purchasedAt || 0
+      });
+    });
+
+    allPurchases.sort((a, b) => b.paidAt - a.paidAt);
+    renderPurchases();
+  } catch (err) {
+    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load purchases') + '</p>';
+  }
+}
+
+function renderPurchases() {
+  const list = $('purchase-list');
+  const q = ($('purchase-search')?.value || '').toLowerCase().trim();
+
+  const filtered = allPurchases.filter(p => {
+    if (!q) return true;
+    return (
+      (p.reference || '').toLowerCase().includes(q) ||
+      (p.displayName || '').toLowerCase().includes(q) ||
+      (p.email || '').toLowerCase().includes(q) ||
+      (p.modName || '').toLowerCase().includes(q)
+    );
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<p class="muted">No purchases found.</p>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const date = p.paidAt ? new Date(p.paidAt).toLocaleDateString() : '';
+    const testBadge = p.test ? '<span class="test-badge">test</span>' : '';
+    return `
+      <div class="purchase-item">
+        <div>
+          <div><strong>${p.displayName || 'Unknown'}</strong> ${testBadge}</div>
+          <div class="muted">${p.email || '—'}</div>
+          <div class="muted" style="margin-top:0.25rem;">${p.modName}</div>
+          <div class="ref" style="margin-top:0.3rem;">${p.reference || '—'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div>$${p.amount.toFixed(2)}</div>
+          <div class="muted">${date}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+if ($('purchase-search')) {
+  $('purchase-search').addEventListener('input', renderPurchases);
+}
+if ($('refresh-purchases')) {
+  $('refresh-purchases').addEventListener('click', loadPurchases);
 }
 
 function updatePreview() {
