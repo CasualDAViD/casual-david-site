@@ -169,7 +169,6 @@ async function loadPurchases() {
   const list = $('purchase-list');
   list.innerHTML = '<p class="muted">Loading…</p>';
   try {
-    // Load mod names for display
     const modsSnap = await getDocs(collection(db, 'mods'));
     modNames = {};
     modsSnap.forEach(d => { modNames[d.id] = d.data().name || 'Mod'; });
@@ -358,6 +357,7 @@ $('save-mod-btn').addEventListener('click', async () => {
       updatedAt: Date.now(),
       unlisted: false,
       views: 0,
+      downloads: 0,
       versions: [{ name: '1.0', price, displayName: '', fileUrl: '', fileName: '' }]
     };
 
