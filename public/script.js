@@ -41,7 +41,8 @@ async function loadOwnedMods() {
 }
 
 function getCategoryLabel(mod) {
-  const type = (mod.type || 'mod').charAt(0).toUpperCase() + (mod.type || 'mod').slice(1);
+  let type = (mod.type || 'mod');
+  type = type === 'bedrock' ? 'Bedrock Addon' : type.charAt(0).toUpperCase() + type.slice(1);
   const subs = Array.isArray(mod.subcategories) && mod.subcategories.length
     ? mod.subcategories.join(', ')
     : (mod.subcategory || mod.mainCategory || '');
@@ -79,6 +80,7 @@ function renderModsGrid() {
           <option value="all" ${currentTypeFilter==='all'?'selected':''}>All</option>
           <option value="mod" ${currentTypeFilter==='mod'?'selected':''}>Mod</option>
           <option value="plugin" ${currentTypeFilter==='plugin'?'selected':''}>Plugin</option>
+          <option value="bedrock" ${currentTypeFilter==='bedrock'?'selected':''}>Bedrock Addon</option>
         </select>
       </label>
       <label>Currency:

@@ -24,6 +24,7 @@ const USERS_WORKER = 'https://casualdavid-admin-users.okpeidavid7.workers.dev/';
 
 const MOD_SUBS = ['Utility', 'QoL', 'Transport', 'Performance', 'Building', 'Survival', 'Magic', 'Technology', 'Adventure', 'Decoration'];
 const PLUGIN_SUBS = ['Utility', 'Economy', 'Protection', 'Minigames', 'Chat', 'World Management', 'Performance', 'Admin Tools', 'Gameplay'];
+const BEDROCK_SUBS = ['Utility', 'QoL', 'Adventure', 'Survival', 'Building', 'Minigames', 'Decoration', 'Performance'];
 
 const ALL_PERMS = ['delete-mod', 'edit-mod', 'donate', 'socials', 'analytics', 'purchases', 'users', 'mods', 'promo'];
 const MOD_PERMS = ['mods', 'edit-mod', 'delete-mod', 'donate'];
@@ -92,7 +93,7 @@ function applyPermissions() {
 
 function fillSubcategories(type, selected = []) {
   const container = $('mod-subcategory');
-  const list = type === 'plugin' ? PLUGIN_SUBS : MOD_SUBS;
+  const list = type === 'plugin' ? PLUGIN_SUBS : type === 'bedrock' ? BEDROCK_SUBS : MOD_SUBS;
   const selectedArr = Array.isArray(selected) ? selected : (selected ? [selected] : []);
   container.innerHTML = list.map(s => `
     <label>
