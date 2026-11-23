@@ -78,6 +78,8 @@ async function startTestServer(options = {}) {
   const overrides = {
     dataDir,
     rateLimit: { windowMs: 60000, limit: options.rateLimit || 1000 },
+    paymentRateLimit: { windowMs: 60000, limit: options.paymentRateLimit || 1000 },
+    webhookRateLimit: { windowMs: 60000, limit: options.webhookRateLimit || 1000 },
     paystack: { secretKey: PAYSTACK_SECRET, publicKey: 'pk_test_x', apiBase: paystack.url },
     oauth: {
       google: { clientId: 'gid', clientSecret: 'gsecret', authUrl: 'https://accounts.example/auth', tokenUrl: `${oauth.url}/token`, userUrl: `${oauth.url}/user` },

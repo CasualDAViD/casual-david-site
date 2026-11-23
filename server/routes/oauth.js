@@ -29,8 +29,17 @@ module.exports = function oauthRoutes({ db, config }) {
     return `${config.siteUrl}/api/auth/oauth/${provider}/callback`;
   }
 
+  function oauthCookie() {
+    return {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: config.cookieSecure,
+      path: '/'
+    };
+  }
+
   function fail(res, code) {
-    res.clearCookie(OAUTH_COOKIE, { path: '/' });
+    res.clearCookie(OAUTH_COOKIE, oauthCookie());
     res.redirect(`/login.html?error=${code}`);
   }
 
@@ -103,10 +112,7 @@ module.exports = function oauthRoutes({ db, config }) {
     const state = crypto.randomBytes(24).toString('base64url');
     const next = safeNext(req.query.next) || '/';
     res.cookie(OAUTH_COOKIE, JSON.stringify({ state, next }), {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: config.cookieSecure,
-      path: '/',
+      ...oauthCookie(),
       maxAge: 10 * 60 * 1000
     });
 
@@ -140,7 +146,7 @@ module.exports = function oauthRoutes({ db, config }) {
       if (!userId) return fail(res, 'oauth_failed');
 
       auth.startSession(db, config, res, userId);
-      res.clearCookie(OAUTH_COOKIE, { path: '/' });
+      res.clearCookie(OAUTH_COOKIE, oauthCookie());
       res.redirect(safeNext(saved.next) || '/');
     } catch (err) {
       console.error(`[oauth:${req.provider}]`, err.message);

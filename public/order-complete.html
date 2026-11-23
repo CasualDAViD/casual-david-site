@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,7 @@
     [data-theme="dark"] .info-side { background: rgba(30,41,59,0.9); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
     .mod-icon { width: 80px; height: 80px; border-radius: 16px; object-fit: cover; background: #f1f5f9; margin-bottom: 1rem; }
     .check { font-size: 2.5rem; margin-bottom: 0.5rem; }
-    .btn { display: inline-block; background: #2563eb; color: white; padding: 0.9rem 2rem; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 1.05rem; }
+    .btn { display: inline-block; background: #2563eb; color: white; padding: 0.9rem 2rem; border-radius: 999px; text-decoration: none; font-weight: 600; font-size: 1.05rem; border: none; cursor: pointer; }
     .btn:hover { background: #1d4ed8; }
     .appreciation { margin-top: 1rem; line-height: 1.6; color: #475569; }
     [data-theme="dark"] .appreciation { color: #cbd5e1; }
@@ -48,36 +49,24 @@
     </div>
   </div>
 
+  <script src="api.js"></script>
   <script type="module" src="firebase-auth.js"></script>
   <script type="module" src="firebase-mods.js"></script>
   <script type="module">
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-
-    const PAYSTACK_WORKER = 'https://casualdavid-paystack.okpeidavid7.workers.dev/';
     const params = new URLSearchParams(location.search);
-    const reference = params.get('reference') || params.get('trxref');
-
-    // Set this to false when you switch to live Paystack keys
-    const TEST_MODE = true;
+    const reference = params.get('reference') || params.get('trxref') || '';
 
     async function waitForAuth(maxWait = 5000) {
       return new Promise((resolve) => {
         const start = Date.now();
         const check = () => {
           if (window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.onAuthStateChanged) {
-            setTimeout(() => {
-              const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
-                if (user) {
-                  unsub();
-                  resolve(user);
-                  return;
-                }
-                if (Date.now() - start > maxWait) {
-                  unsub();
-                  resolve(null);
-                }
-              });
-            }, 200);
+            const unsub = window.firebaseAuth.onAuthStateChanged(window.firebaseAuth.auth, (user) => {
+              if (user || Date.now() - start > maxWait) {
+                unsub();
+                resolve(user || null);
+              }
+            });
             return;
           }
           if (Date.now() - start > maxWait) { resolve(null); return; }
@@ -89,72 +78,61 @@
 
     async function verify() {
       const box = document.getElementById('result');
-      if (!reference) {
-        box.innerHTML = '<p>No payment reference found.</p>';
+      if (!/^[A-Za-z0-9_-]{6,80}$/.test(reference)) {
+        box.textContent = 'No payment reference found.';
         return;
       }
 
       try {
-        const res = await fetch(PAYSTACK_WORKER + 'verify?reference=' + encodeURIComponent(reference));
+        const user = await waitForAuth();
+        const headers = {};
+        if (user) headers.Authorization = 'Bearer ' + await user.getIdToken();
+        const res = await fetch(CD_PAYSTACK_URL + 'verify?reference=' + encodeURIComponent(reference), { headers });
         const data = await res.json();
 
         if (!data.success) {
-          box.innerHTML = '<p>Payment was not successful. Please try again or contact support.</p>';
+          box.textContent = 'Payment was not successful. Please try again or contact support.';
           return;
         }
 
-        const modId = data.metadata?.modId;
+        const modId = data.modId || (data.metadata && data.metadata.modId);
         let mod = null;
-        if (modId && window.firebaseMods) {
-          mod = await window.firebaseMods.get(modId);
-        }
-
-        const fileUrl = mod?.fileUrl || (mod?.versions?.[0]?.fileUrl);
-        const fileName = mod?.fileName || (mod?.versions?.[0]?.fileName) || 'download';
-        const thankYou = mod?.thankYou || 'Thank you for your purchase! Click the download button to get your mod.';
-
-        const versions = mod?.versions || [];
-        const amount = versions.length ? Number(versions[0].price) : Number(mod?.price || 0);
-
-        // Record purchase if user is signed in
-        const user = await waitForAuth();
-        if (user && modId) {
-          try {
-            const db = getFirestore();
-            await setDoc(doc(db, 'purchases', user.uid + '_' + modId), {
-              uid: user.uid,
-              userId: user.uid,
-              displayName: user.displayName || '',
-              email: user.email || '',
-              modId,
-              modName: mod?.name || '',
-              reference,
-              amount,
-              test: TEST_MODE,
-              paidAt: Date.now(),
-              purchasedAt: Date.now()
-            });
-          } catch (e) { console.warn('Could not save purchase', e); }
-        }
+        if (modId && window.firebaseMods) mod = await window.firebaseMods.get(modId);
+        const seal = fileSealOf(mod);
+        const fileUrl = fileUrlOf(mod);
+        const fileName = fileNameOf(mod);
+        const thankYou = (mod && mod.thankYou) || 'Thank you for your purchase. Your download is below.';
+        const name = (mod && mod.name) || data.modName || 'Your mod';
+        const icon = mod && safeUrl(mod.icon);
+        const pending = data.recorded === false
+          ? '<p>Payment confirmed. If the download is not ready yet, check purchase history shortly or email support.</p>'
+          : '';
 
         box.innerHTML = `
           <div class="complete-layout">
             <div class="download-side">
               <div class="check">✅</div>
               <h2>Payment successful</h2>
-              ${fileUrl ? `<a class="btn" href="${fileUrl}" download="${fileName}">Download mod</a>` : '<p>File link will be available shortly.</p>'}
-              ${reference ? `<div class="ref-id">Reference: ${reference}</div>` : ''}
+              ${seal ? '<button class="btn" id="download-seal" type="button">Download mod</button>' : (fileUrl ? `<a class="btn" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">Download mod</a>` : '<p>File link will be available shortly.</p>')}
+              ${pending}
+              <div class="ref-id">Reference: ${escapeHtml(reference)}</div>
               <div style="margin-top:1.5rem;"><a href="history.html" style="color:#2563eb;">View purchase history</a></div>
             </div>
             <div class="info-side">
-              ${mod?.icon ? `<img class="mod-icon" src="${mod.icon}" alt="">` : ''}
-              <h1>${mod?.name || 'Your mod'}</h1>
-              <div class="appreciation">${thankYou}</div>
+              ${icon ? `<img class="mod-icon" src="${escapeHtml(icon)}" alt="">` : ''}
+              <h1>${escapeHtml(name)}</h1>
+              <div class="appreciation">${escapeHtml(thankYou)}</div>
             </div>
           </div>
         `;
+        const dl = document.getElementById('download-seal');
+        if (dl) dl.addEventListener('click', async () => {
+          dl.disabled = true;
+          try { await downloadOwnedFile(modId, fileName); }
+          catch (e) { dl.textContent = 'Try again'; dl.disabled = false; }
+        });
       } catch (err) {
-        box.innerHTML = '<p>Could not verify payment. Please contact support with your reference.</p>';
+        box.textContent = 'Could not verify payment. Please contact support with your reference.';
       }
     }
 

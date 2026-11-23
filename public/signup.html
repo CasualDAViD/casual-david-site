@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,6 +63,7 @@
         <div id="msg" class="form-msg" role="alert"></div>
         <button type="submit" id="submit" class="btn btn-primary">Create account</button>
       </form>
+      <p class="legal-note">By creating an account you agree to the <a href="terms.html">Terms of Use</a> and <a href="privacy.html">Privacy Policy</a>.</p>
       <a href="login.html" class="create-link">Already have an account? Sign in</a>
     </div>
   </div>
@@ -75,7 +77,12 @@
       el.className = 'form-msg ' + (ok ? 'ok' : 'error');
     }
 
-    const next = new URLSearchParams(location.search).get('next') || 'index.html';
+    function safeNext(value) {
+      if (!value || value.charAt(0) !== '/' || value.charAt(1) === '/' || value.indexOf('\\') >= 0) return '';
+      if (/[\u0000-\u001f]/.test(value) || value.length > 300) return '';
+      return value;
+    }
+    const next = safeNext(new URLSearchParams(location.search).get('next')) || 'index.html';
 
     document.getElementById('google-btn').addEventListener('click', async () => {
       try {

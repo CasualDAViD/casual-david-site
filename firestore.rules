@@ -1,0 +1,73 @@
+rules_version = '2';
+// Deploy with: npx firebase-tools deploy --only firestore:rules
+// Buyers cannot write purchase rows. The Paystack worker writes those with a
+// service account, which bypasses these rules. Until that secret is set, a
+// buyer can still record their own paid order only if these rules are not
+// deployed yet.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isMainAdmin() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email == 'okpeidavid7@gmail.com';
+    }
+    function adminPath() {
+      return /databases/$(database)/documents/admins/$(request.auth.uid);
+    }
+    function isSubAdmin() {
+      return signedIn()
+        && exists(adminPath())
+        && get(adminPath()).data.mustChangePassword != true;
+    }
+    function hasPerm(perm) {
+      return isMainAdmin() || (isSubAdmin() && perm in get(adminPath()).data.permissions);
+    }
+    function modEditor() {
+      return hasPerm('mods') || hasPerm('edit-mod') || hasPerm('delete-mod');
+    }
+
+    match /mods/{id} {
+      allow read: if true;
+      allow create: if modEditor();
+      allow delete: if hasPerm('delete-mod') || isMainAdmin();
+      allow update: if modEditor()
+        || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['downloads'])
+            && request.resource.data.downloads == resource.data.downloads + 1)
+        || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+            && request.resource.data.views == resource.data.views + 1);
+    }
+
+    match /config/{id} {
+      allow read: if true;
+      allow write: if hasPerm('socials') || isMainAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if isMainAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create, delete: if isMainAdmin();
+      allow update: if isMainAdmin() || (
+        signedIn()
+        && request.auth.uid == uid
+        && resource.data.mustChangePassword == true
+        && request.resource.data.mustChangePassword == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChangePassword'])
+      );
+    }
+
+    match /purchases/{id} {
+      allow read: if hasPerm('purchases') || hasPerm('analytics') || (
+        signedIn() && (resource.data.uid == request.auth.uid || resource.data.userId == request.auth.uid)
+      );
+      allow create, update, delete: if false;
+    }
+
+    match /promos/{id} {
+      allow read, write: if hasPerm('promo') || isMainAdmin();
+    }
+  }
+}

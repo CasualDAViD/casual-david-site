@@ -23,6 +23,11 @@ function createApp(config, extra = {}) {
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
 
+  app.use((req, res, next) => {
+    res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
   app.use(helmet({
     contentSecurityPolicy: {
       useDefaults: false,

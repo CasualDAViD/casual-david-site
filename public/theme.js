@@ -35,9 +35,32 @@
   });
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', apply);
+    document.addEventListener('DOMContentLoaded', boot);
   } else {
+    boot();
+  }
+
+  function boot() {
     apply();
+    showCookieNotice();
+  }
+
+  function showCookieNotice() {
+    try { if (localStorage.getItem('cd_cookie_notice') === '1') return; } catch (e) { return; }
+    if (document.getElementById('cookie-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'cookie-bar';
+    bar.className = 'cookie-bar';
+    bar.innerHTML = '<p>This site stores a theme choice on your device and uses sign-in cookies when you have an account. <a href="cookies.html">Cookie notice</a></p>';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'OK';
+    btn.addEventListener('click', () => {
+      try { localStorage.setItem('cd_cookie_notice', '1'); } catch (e) { /* private mode */ }
+      bar.remove();
+    });
+    bar.appendChild(btn);
+    document.body.appendChild(bar);
   }
 })();
 

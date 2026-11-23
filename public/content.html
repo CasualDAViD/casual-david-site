@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,7 +63,13 @@
 
   <footer class="footer">
     <div class="container footer-inner">
-      <p>© 2026 Casual_DAViD </p>
+      <p>&copy; 2026 Casual_DAViD</p>
+      <nav class="footer-links" aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="refund.html">Refunds</a>
+        <a href="cookies.html">Cookies</a>
+      </nav>
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
