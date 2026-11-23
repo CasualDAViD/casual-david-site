@@ -84,8 +84,21 @@ Put the client ID and secret in `.env` and restart. Only accounts whose email th
 
 - **Email is not verified at sign-up.** If someone registers with a password using an address and the real owner later signs in with Google/Discord, the password on that unverified account is removed and its sessions end (so nobody can squat on someone else's email). A password reset link also counts as verification.
 - Deleting a mod hides it from the shop but keeps the file, so existing buyers can still download it.
-- Login attempts are rate-limited per IP (20 failures per 15 minutes).
+- Login attempts are rate-limited per IP (20 failures per 15 minutes). Checkout and payment checks are limited too.
+- Passwords are hashed with scrypt (OWASP settings). Sessions are HttpOnly, SameSite=Lax cookies, and Secure when `SITE_URL` is https.
 - Never commit `.env` or `data/`; `.gitignore` already excludes them.
+
+## Security deploy (GitHub Pages stays as it is)
+
+The public site still uses Firebase and the three Cloudflare workers. These repo changes do not protect the live site until they are deployed:
+
+1. Create a Firebase service account with Firestore and Authentication admin access. Store the JSON as the secret `FIREBASE_SERVICE_ACCOUNT` on the Paystack worker and the admin-users worker.
+2. On the upload worker, set `PUBLIC_URL` (images only) and `FILE_SEAL_KEY` (`openssl rand -base64 32`). New mod files are stored without a public link.
+3. Deploy the workers with `npx wrangler deploy --config worker/paystack.toml` (and the upload and admin-users configs). Add the Paystack webhook `https://<paystack-worker>/webhook`.
+4. Deploy `firestore.rules` (`npx firebase-tools deploy --only firestore:rules`). Do this after the workers, or new purchases cannot be saved.
+5. In Google Cloud, restrict the Firebase web API key to your site's HTTP referrers. It is a client key and is still in the public scripts. It was also copied into git history; rotate it if the console allows, then put the new key only in the website config.
+6. Older mod files may still be on a public R2 address. Re-upload them in the admin page, then remove the old public objects or turn off public access on that bucket.
+7. Point Paystack at the Node webhook as well if you run the VPS: `https://<your-domain>/api/paystack/webhook`.
 
 ## Tests
 

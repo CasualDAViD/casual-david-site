@@ -86,6 +86,81 @@ function formatKobo(kobo) {
 
 // A same-site path to return to after signing in (?next=/checkout.html?id=...).
 function nextParam() {
-  var n = new URLSearchParams(location.search).get('next');
-  return n && n.charAt(0) === '/' && n.charAt(1) !== '/' && n.indexOf('\\') < 0 ? n : null;
+  return safeNext(new URLSearchParams(location.search).get('next'));
+}
+
+// Same-site relative path only. Blocks open redirects and javascript: URLs.
+function safeNext(value) {
+  if (typeof value !== 'string') return null;
+  if (!value || value.charAt(0) !== '/' || value.charAt(1) === '/' || value.indexOf('\\') >= 0) return null;
+  if (/[\u0000-\u001f]/.test(value) || value.length > 300) return null;
+  return value;
+}
+
+// http(s) only. Use this before putting a saved link into href or src.
+function safeUrl(value) {
+  if (typeof value !== 'string' || !value) return '';
+  try {
+    var u = new URL(value, location.origin);
+    if (u.protocol === 'https:' || u.protocol === 'http:') return u.href;
+  } catch (e) { /* ignore */ }
+  return '';
+}
+
+var CD_PAYSTACK_URL = 'https://casualdavid-paystack.okpeidavid7.workers.dev/';
+var CD_UPLOAD_URL = 'https://casualdavid-upload.okpeidavid7.workers.dev/';
+
+function fileSealOf(mod) {
+  if (!mod) return '';
+  var versions = mod.versions || [];
+  return mod.fileSeal || (versions[0] && versions[0].fileSeal) || '';
+}
+function fileUrlOf(mod) {
+  if (!mod) return '';
+  var versions = mod.versions || [];
+  return safeUrl(mod.fileUrl || (versions[0] && versions[0].fileUrl) || '');
+}
+function fileNameOf(mod) {
+  if (!mod) return 'download';
+  var versions = mod.versions || [];
+  return mod.fileName || (versions[0] && versions[0].fileName) || 'download';
+}
+
+function renderPlainMarkdown(md) {
+  var html = escapeHtml(md || '');
+  html = html
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n/g, '<br>');
+  html = html.replace(/https?:\/\/[^\s<]+/g, function (url) {
+    var safe = safeUrl(url);
+    return safe ? '<a href="' + escapeHtml(safe) + '" target="_blank" rel="noopener">' + escapeHtml(url) + '</a>' : escapeHtml(url);
+  });
+  return html;
+}
+
+async function downloadOwnedFile(modId, fileName) {
+  var user = window.firebaseAuth && window.firebaseAuth.auth && window.firebaseAuth.auth.currentUser;
+  if (!user) {
+    location.href = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+    return;
+  }
+  var token = await user.getIdToken();
+  var res = await fetch(CD_UPLOAD_URL + 'download', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ modId: modId })
+  });
+  if (!res.ok) throw new Error('Download is not available yet. If you just paid, wait a moment and try again from purchase history.');
+  var blob = await res.blob();
+  var a = document.createElement('a');
+  var url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = fileName || 'download';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
 }

@@ -1,14 +1,28 @@
 'use strict';
 
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const auth = require('../auth');
 const { bodyOf, safeFileName } = require('../validate');
 const { newOrderReference } = require('../models');
 const { receiptEmail } = require('../mailer');
 const { PaystackError } = require('../paystack');
 
+function limiter(bucket, options = {}) {
+  return rateLimit({
+    windowMs: bucket.windowMs,
+    limit: bucket.limit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'rate_limited', message: 'Too many attempts. Please wait a few minutes and try again.' },
+    ...options
+  });
+}
+
 module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
   const router = express.Router();
+  const payLimit = limiter(config.paymentRateLimit || config.rateLimit);
+  const hookLimit = limiter(config.webhookRateLimit || config.rateLimit);
 
   // ---- public catalogue -------------------------------------------------
 
@@ -88,7 +102,7 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
     }).catch((err) => console.error('[mail] receipt failed:', err.message));
   }
 
-  router.post('/orders', auth.requireAuth, async (req, res) => {
+  router.post('/orders', auth.requireAuth, payLimit, async (req, res) => {
     if (!config.paystack.enabled) {
       return res.status(503).json({ error: 'payments_unavailable', message: 'Payments are not set up yet. Please check back soon.' });
     }
@@ -123,7 +137,7 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
   });
 
   // The buyer lands here after Paystack. We ask Paystack what really happened.
-  router.get('/orders/verify', auth.requireAuth, async (req, res) => {
+  router.get('/orders/verify', auth.requireAuth, payLimit, async (req, res) => {
     const reference = typeof req.query.reference === 'string' ? req.query.reference : '';
     const order = reference ? q.order.get(reference) : null;
     if (!order || order.user_id !== req.user.id) {
@@ -163,7 +177,7 @@ module.exports = function shopRoutes({ db, config, models, paystack, mailer }) {
 
   // Paystack calls this itself, so payments still count if the buyer closes the tab.
   // The body arrives raw (see index.js) because the signature covers exact bytes.
-  router.post('/paystack/webhook', async (req, res) => {
+  router.post('/paystack/webhook', hookLimit, async (req, res) => {
     if (!paystack.validSignature(req.body, req.get('x-paystack-signature'))) {
       return res.status(401).json({ error: 'bad_signature' });
     }

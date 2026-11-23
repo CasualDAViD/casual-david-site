@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -130,7 +131,13 @@
 
   <footer class="footer">
     <div class="container footer-inner">
-      <p>© 2026 Casual_DAViD </p>
+      <p>&copy; 2026 Casual_DAViD</p>
+      <nav class="footer-links" aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="refund.html">Refunds</a>
+        <a href="cookies.html">Cookies</a>
+      </nav>
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
@@ -146,16 +153,7 @@
     let currentIndex = 0;
 
     function renderDescription(md) {
-      if (!md) return '';
-      let html = md
-        .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^- (.+)$/gm, '<li>$1</li>')
-        .replace(/\n/g, '<br>');
-      html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-      return html;
+      return renderPlainMarkdown(md);
     }
 
     function getSubcats(mod) {
@@ -271,12 +269,13 @@
       const currency = getCurrency();
       const versions = mod.versions || [];
       const price = versions.length ? versions[0].price : (mod.price || 0);
-      const hasFile = (versions.length && versions[0].fileUrl) || mod.fileUrl;
+      const seal = fileSealOf(mod);
+      const fileUrl = fileUrlOf(mod);
+      const hasFile = !!(seal || fileUrl);
       const owned = await checkOwned(mod.id);
-      const fileUrl = mod.fileUrl || (versions[0] && versions[0].fileUrl);
-      const fileName = mod.fileName || (versions[0] && versions[0].fileName) || 'download';
-      const screenshots = (mod.screenshots || []).filter(Boolean);
-      images = screenshots.length ? screenshots : (mod.icon ? [mod.icon] : []);
+      const fileName = fileNameOf(mod);
+      const screenshots = (mod.screenshots || []).map(safeUrl).filter(Boolean);
+      images = screenshots.length ? screenshots : (safeUrl(mod.icon) ? [safeUrl(mod.icon)] : []);
       const subcats = getSubcats(mod);
       const donate = mod.donateUrl || await getDonateLink();
       document.title = mod.name + ' • Casual_DAViD';
@@ -291,11 +290,11 @@
             <div class="gallery-thumbs" id="thumbs">
               ${images.map((src, i) => `<img src="${escapeHtml(src)}" class="${i===0?'active':''}" data-idx="${i}" alt="">`).join('')}
             </div>
-            ${donate ? `<a class="donate-btn" href="${escapeHtml(donate)}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Donate</a>` : ''}
+            ${safeUrl(donate) ? `<a class="donate-btn" href="${escapeHtml(safeUrl(donate))}" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Donate</a>` : ''}
           </div>
           <div class="product-info">
             <div class="info-header">
-              ${mod.icon ? `<img class="info-icon" src="${escapeHtml(mod.icon)}" alt="">` : ''}
+              ${safeUrl(mod.icon) ? `<img class="info-icon" src="${escapeHtml(safeUrl(mod.icon))}" alt="">` : ''}
               <div>
                 <h1>${escapeHtml(mod.name)}</h1>
                 <div class="subcats">${subcats.map(s => `<span class="subcat">${escapeHtml(s)}</span>`).join('')}</div>
@@ -305,7 +304,9 @@
             <div class="delivery"><span>Delivery time</span><strong>Instant</strong></div>
             ${hasFile
               ? (owned
-                  ? `<a class="buy-now" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">Download</a>`
+                  ? (seal
+                      ? `<button class="buy-now" id="download-seal" type="button">Download</button>`
+                      : `<a class="buy-now" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">Download</a>`)
                   : `<button class="buy-now" id="buy-now">Buy now</button>`)
               : `<button class="buy-now" disabled style="opacity:0.6;cursor:not-allowed;">Coming soon</button>`}
             <div class="desc">
@@ -327,6 +328,12 @@
 
       const buy = document.getElementById('buy-now');
       if (buy) buy.addEventListener('click', () => { location.href = 'checkout.html?id=' + encodeURIComponent(mod.id); });
+      const dl = document.getElementById('download-seal');
+      if (dl) dl.addEventListener('click', async () => {
+        dl.disabled = true;
+        try { await downloadOwnedFile(mod.id, fileName); }
+        catch (e) { dl.textContent = 'Try again'; dl.disabled = false; }
+      });
     }
 
     document.getElementById('lb-close').addEventListener('click', closeLightbox);

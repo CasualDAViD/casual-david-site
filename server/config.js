@@ -54,6 +54,8 @@ function loadConfig(env = process.env, overrides = {}) {
     // Same rates the storefront shows. NGN is what Paystack actually charges.
     rates: { USD: 1, NGN: posNum(env.RATE_NGN, 1550), EUR: posNum(env.RATE_EUR, 0.92) },
     rateLimit: { windowMs: 15 * 60 * 1000, limit: 20 },
+    paymentRateLimit: { windowMs: 15 * 60 * 1000, limit: 30 },
+    webhookRateLimit: { windowMs: 15 * 60 * 1000, limit: 120 },
     paystack: {
       secretKey: env.PAYSTACK_SECRET_KEY || '',
       publicKey: env.PAYSTACK_PUBLIC_KEY || '',

@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /privateadmin
+Disallow: /privateadmin.html
 
 Sitemap: https://casualdavid.com.ng/sitemap.xml

@@ -31,6 +31,27 @@ const MOD_PERMS = ['mods', 'edit-mod', 'delete-mod', 'donate'];
 
 const $ = (id) => document.getElementById(id);
 
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+function safeHttp(value) {
+  try {
+    const u = new URL(value);
+    if (u.protocol === 'https:' || u.protocol === 'http:') return u.href;
+  } catch (e) { /* ignore */ }
+  return '';
+}
+function renderMd(md) {
+  return esc(md || '')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/\n/g, '<br>');
+}
+
 let allPurchases = [];
 let modNames = {};
 let analyticsChart = null;
@@ -110,7 +131,10 @@ function getSelectedSubcategories() {
 function showScreenshotPreview(urls) {
   const box = $('screenshot-preview');
   if (!box) return;
-  box.innerHTML = (urls || []).map(url => `<img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;">`).join('');
+  box.innerHTML = (urls || []).map(url => {
+    const safe = safeHttp(url);
+    return safe ? `<img src="${esc(safe)}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;">` : '';
+  }).join('');
 }
 
 $('mod-type').addEventListener('change', () => fillSubcategories($('mod-type').value));
@@ -227,13 +251,14 @@ async function loadUsers() {
     list.innerHTML = snap.docs.map(d => {
       const u = d.data();
       if (u.role === 'main') return '';
-      const perms = (u.permissions || []).join(', ') || 'none';
+      const perms = esc((u.permissions || []).join(', ') || 'none');
+      const uid = esc(d.id);
       const status = u.mustChangePassword ? ' <span class="test-badge">temp password</span>' : '';
-      return `<div class="user-item" data-uid="${d.id}">
+      return `<div class="user-item" data-uid="${uid}">
         <div style="flex:1;">
-          <strong>${u.email || d.id}</strong>${status}
+          <strong>${esc(u.email || d.id)}</strong>${status}
           <div class="muted">${perms}</div>
-          <div class="user-perms-edit hidden" id="edit-perms-${d.id}">
+          <div class="user-perms-edit hidden" id="edit-perms-${uid}">
             <div class="perm-grid" style="margin:0.5rem 0;">
               <label><input type="checkbox" data-perm="delete-mod" ${ (u.permissions||[]).includes('delete-mod') ? 'checked' : '' }> Delete mod</label>
               <label><input type="checkbox" data-perm="edit-mod" ${ (u.permissions||[]).includes('edit-mod') ? 'checked' : '' }> Edit mod</label>
@@ -242,13 +267,13 @@ async function loadUsers() {
               <label><input type="checkbox" data-perm="analytics" ${ (u.permissions||[]).includes('analytics') ? 'checked' : '' }> View analytics</label>
               <label><input type="checkbox" data-perm="purchases" ${ (u.permissions||[]).includes('purchases') ? 'checked' : '' }> View purchases</label>
             </div>
-            <button class="btn" style="padding:0.4rem 0.8rem;margin:0;" data-save-perms="${d.id}">Save</button>
-            <button class="btn btn-plain" style="padding:0.4rem 0.8rem;margin:0;" data-cancel-perms="${d.id}">Cancel</button>
+            <button class="btn" style="padding:0.4rem 0.8rem;margin:0;" data-save-perms="${uid}">Save</button>
+            <button class="btn btn-plain" style="padding:0.4rem 0.8rem;margin:0;" data-cancel-perms="${uid}">Cancel</button>
           </div>
         </div>
         <div style="display:flex; gap:0.4rem;">
-          <button class="btn" style="padding:0.4rem 0.7rem;margin:0;" data-edit-perms="${d.id}">Edit</button>
-          <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-user="${d.id}">Remove</button>
+          <button class="btn" style="padding:0.4rem 0.7rem;margin:0;" data-edit-perms="${uid}">Edit</button>
+          <button class="btn btn-danger" style="padding:0.4rem 0.7rem;margin:0;" data-del-user="${uid}">Remove</button>
         </div>
       </div>`;
     }).filter(Boolean).join('') || '<p class="muted">No sub-users yet.</p>';
@@ -262,7 +287,7 @@ async function loadUsers() {
     list.querySelectorAll('[data-save-perms]').forEach(b => b.addEventListener('click', () => saveUserPerms(b.dataset.savePerms)));
     list.querySelectorAll('[data-del-user]').forEach(b => b.addEventListener('click', () => deleteUser(b.dataset.delUser)));
   } catch (err) {
-    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load users') + '</p>';
+    list.innerHTML = '<p class="error">' + esc(err.message || 'Failed to load users') + '</p>';
   }
 }
 
@@ -292,14 +317,16 @@ $('add-user-btn').addEventListener('click', async () => {
   btn.disabled = true;
   setMsg('user-msg', 'Creating user…', true);
   try {
+    const token = await auth.currentUser.getIdToken();
     const res = await fetch(USERS_WORKER, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ email, permissions })
     });
     const data = await res.json();
     if (!res.ok || !data.success) throw new Error(data.error || 'Failed to create user');
-    setMsg('user-msg', data.message || 'User created and email sent!', true);
+    const note = data.temporaryPassword ? (data.message + ' Temporary password: ' + data.temporaryPassword) : (data.message || 'User created and email sent!');
+    setMsg('user-msg', note, true);
     $('subuser-email').value = '';
     document.querySelectorAll('#tab-users input[type="checkbox"]').forEach(el => el.checked = false);
     loadUsers();
@@ -313,7 +340,11 @@ $('add-user-btn').addEventListener('click', async () => {
 async function deleteUser(uid) {
   if (!confirm('Remove this user? They will no longer be able to access the admin page.')) return;
   try {
-    await fetch(USERS_WORKER + '?uid=' + encodeURIComponent(uid), { method: 'DELETE' });
+    const token = await auth.currentUser.getIdToken();
+    await fetch(USERS_WORKER + '?uid=' + encodeURIComponent(uid), {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
     await deleteDoc(doc(db, 'admins', uid));
     loadUsers();
   } catch (err) {
@@ -370,12 +401,12 @@ async function loadAnalytics() {
     const projectSelect = $('analytics-project');
     const current = projectSelect.value;
     projectSelect.innerHTML = '<option value="all">All projects</option>' +
-      analyticsData.mods.map(m => `<option value="${m.id}">${m.name || 'Mod'}</option>`).join('');
+      analyticsData.mods.map(m => `<option value="${esc(m.id)}">${esc(m.name || 'Mod')}</option>`).join('');
     if (current && [...projectSelect.options].some(o => o.value === current)) projectSelect.value = current;
 
     renderAnalytics();
   } catch (err) {
-    $('mod-stats').innerHTML = '<p class="error">' + (err.message || 'Failed to load analytics') + '</p>';
+    $('mod-stats').innerHTML = '<p class="error">' + esc(err.message || 'Failed to load analytics') + '</p>';
   }
 }
 
@@ -472,7 +503,7 @@ function renderAnalytics() {
     const testLabel = m.testRevenue > 0 ? ` <span style="color:#f59e0b;">test $${m.testRevenue.toFixed(2)}</span>` : '';
     return `
       <div class="mod-stat">
-        <div><strong>${m.name}</strong></div>
+        <div><strong>${esc(m.name)}</strong></div>
         <div class="muted">${m.views} views • ${m.downloads} downloads • ${m.purchases} purchases • $${m.revenue.toFixed(2)}${testLabel}</div>
       </div>
     `;
@@ -512,7 +543,7 @@ async function loadPurchases() {
     allPurchases.sort((a, b) => b.paidAt - a.paidAt);
     renderPurchases();
   } catch (err) {
-    list.innerHTML = '<p class="error">' + (err.message || 'Failed to load purchases') + '</p>';
+    list.innerHTML = '<p class="error">' + esc(err.message || 'Failed to load purchases') + '</p>';
   }
 }
 
@@ -541,10 +572,10 @@ function renderPurchases() {
     return `
       <div class="purchase-item">
         <div>
-          <div><strong>${p.displayName || 'Unknown'}</strong> ${testBadge}</div>
-          <div class="muted">${p.email || '—'}</div>
-          <div class="muted" style="margin-top:0.25rem;">${p.modName}</div>
-          <div class="ref" style="margin-top:0.3rem;">${p.reference || '—'}</div>
+          <div><strong>${esc(p.displayName || 'Unknown')}</strong> ${testBadge}</div>
+          <div class="muted">${esc(p.email || '—')}</div>
+          <div class="muted" style="margin-top:0.25rem;">${esc(p.modName)}</div>
+          <div class="ref" style="margin-top:0.3rem;">${esc(p.reference || '—')}</div>
         </div>
         <div style="text-align:right;">
           <div>$${p.amount.toFixed(2)}</div>
@@ -564,14 +595,7 @@ if ($('refresh-purchases')) {
 
 function updatePreview() {
   const md = $('mod-desc').value || '';
-  const html = md
-    .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/\n/g, '<br>');
-  $('md-preview').innerHTML = html || '<span style="color:#94a3b8;">Preview will appear here</span>';
+  $('md-preview').innerHTML = renderMd(md) || '<span style="color:#94a3b8;">Preview will appear here</span>';
 }
 $('mod-desc').addEventListener('input', updatePreview);
 
@@ -607,15 +631,15 @@ async function loadMods() {
       const subs = Array.isArray(m.subcategories) ? m.subcategories.join(', ') : (m.subcategory || m.mainCategory || '');
       return `<div class="mod-item">
         <div style="display:flex;align-items:center;gap:0.75rem;">
-          ${m.icon ? `<img src="${m.icon}" class="preview-img">` : '<div class="preview-img"></div>'}
+          ${safeHttp(m.icon) ? `<img src="${esc(safeHttp(m.icon))}" class="preview-img">` : '<div class="preview-img"></div>'}
           <div>
-            <strong>${m.name || ''}</strong>
-            <div class="muted">$${Number(price).toFixed(2)} • ${type} / ${subs}</div>
+            <strong>${esc(m.name || '')}</strong>
+            <div class="muted">$${Number(price).toFixed(2)} • ${esc(type)} / ${esc(subs)}</div>
           </div>
         </div>
         <div>
-          ${canEdit ? `<button class="btn" style="padding:0.4rem 0.7rem;margin-right:0.4rem;" data-edit="${d.id}">Edit</button>` : ''}
-          ${canDelete ? `<button class="btn btn-danger" style="padding:0.4rem 0.7rem;" data-delete="${d.id}">Delete</button>` : ''}
+          ${canEdit ? `<button class="btn" style="padding:0.4rem 0.7rem;margin-right:0.4rem;" data-edit="${esc(d.id)}">Edit</button>` : ''}
+          ${canDelete ? `<button class="btn btn-danger" style="padding:0.4rem 0.7rem;" data-delete="${esc(d.id)}">Delete</button>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -626,18 +650,21 @@ async function loadMods() {
   }
 }
 
-async function uploadToR2(file) {
+async function uploadToR2(file, kind) {
+  const token = await auth.currentUser.getIdToken();
   const res = await fetch(UPLOAD_URL, {
     method: 'POST',
     headers: {
+      Authorization: 'Bearer ' + token,
       'Content-Type': file.type || 'application/octet-stream',
-      'X-Filename': file.name
+      'X-Filename': file.name,
+      'X-Kind': kind
     },
     body: file
   });
-  if (!res.ok) throw new Error('Upload failed');
-  const data = await res.json();
-  return data.url;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data;
 }
 
 $('save-mod-btn').addEventListener('click', async () => {
@@ -683,27 +710,35 @@ $('save-mod-btn').addEventListener('click', async () => {
     if (donateUrl !== undefined) data.donateUrl = donateUrl;
 
     if ($('mod-icon').files[0]) {
-      const url = await uploadToR2($('mod-icon').files[0]);
-      if (url) data.icon = url;
+      const up = await uploadToR2($('mod-icon').files[0], 'image');
+      if (up.url) data.icon = up.url;
     }
 
     const screenshotFiles = $('mod-screenshots').files;
     if (screenshotFiles && screenshotFiles.length) {
       const urls = [];
       for (const file of screenshotFiles) {
-        const url = await uploadToR2(file);
-        if (url) urls.push(url);
+        const up = await uploadToR2(file, 'image');
+        if (up.url) urls.push(up.url);
       }
       if (urls.length) data.screenshots = urls;
     }
 
     if ($('mod-file').files[0]) {
-      const url = await uploadToR2($('mod-file').files[0]);
-      if (url) {
-        data.fileUrl = url;
-        data.fileName = $('mod-file').files[0].name;
-        data.versions[0].fileUrl = url;
-        data.versions[0].fileName = $('mod-file').files[0].name;
+      const up = await uploadToR2($('mod-file').files[0], 'file');
+      const originalName = $('mod-file').files[0].name;
+      if (up.seal) {
+        data.fileSeal = up.seal;
+        data.fileName = up.fileName || originalName;
+        data.fileUrl = '';
+        data.versions[0].fileSeal = up.seal;
+        data.versions[0].fileUrl = '';
+        data.versions[0].fileName = up.fileName || originalName;
+      } else if (up.url) {
+        data.fileUrl = up.url;
+        data.fileName = originalName;
+        data.versions[0].fileUrl = up.url;
+        data.versions[0].fileName = originalName;
       }
     }
 
@@ -834,12 +869,12 @@ async function loadPromos() {
       const uses = (p.uses || 0) + (p.maxUses ? ' / ' + p.maxUses : '');
       const expires = p.expiresAt ? new Date(p.expiresAt).toLocaleDateString() : '—';
       const action = p.unlisted
-        ? `<button class="btn" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-rel-promo="${d.id}">Relist</button>`
-        : `<button class="btn btn-plain" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-unlist-promo="${d.id}">Unlist</button>`;
+        ? `<button class="btn" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-rel-promo="${esc(d.id)}">Relist</button>`
+        : `<button class="btn btn-plain" style="padding:0.35rem 0.7rem; margin:0; font-size:0.85rem;" data-unlist-promo="${esc(d.id)}">Unlist</button>`;
       return `<tr style="border-bottom:1px solid #e2e8f0;">
         <td style="padding:0.7rem 0.5rem; font-family:ui-monospace,monospace; font-weight:600; letter-spacing:0.04em;">
-          ${d.id}
-          <button class="btn btn-plain" style="padding:0.2rem 0.5rem; margin-left:0.4rem; font-size:0.75rem;" data-copy="${d.id}" title="Copy">Copy</button>
+          ${esc(d.id)}
+          <button class="btn btn-plain" style="padding:0.2rem 0.5rem; margin-left:0.4rem; font-size:0.75rem;" data-copy="${esc(d.id)}" title="Copy">Copy</button>
         </td>
         <td style="padding:0.7rem 0.5rem;">${p.percent}% off</td>
         <td style="padding:0.7rem 0.5rem;">${uses}</td>
@@ -859,7 +894,7 @@ async function loadPromos() {
       } catch (e) { alert('Copy failed'); }
     }));
   } catch (err) {
-    list.innerHTML = '<tr><td colspan="6" class="error" style="padding:1rem;">' + (err.message || 'Failed to load') + '</td></tr>';
+    list.innerHTML = '<tr><td colspan="6" class="error" style="padding:1rem;">' + esc(err.message || 'Failed to load') + '</td></tr>';
   }
 }
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,11 +58,18 @@
 
   <footer class="footer">
     <div class="container footer-inner">
-      <p>© 2026 Casual_DAViD </p>
+      <p>&copy; 2026 Casual_DAViD</p>
+      <nav class="footer-links" aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="refund.html">Refunds</a>
+        <a href="cookies.html">Cookies</a>
+      </nav>
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
 
+  <script src="api.js"></script>
   <script type="module" src="firebase-auth.js"></script>
   <script type="module" src="firebase-mods.js"></script>
   <script type="module">
@@ -134,19 +142,32 @@
           const amount = Number(p.amount || 0);
           const ref = p.reference || '';
 
+          const seal = fileSealOf(mod);
+          const fileUrl = fileUrlOf(mod);
+          const fileName = fileNameOf(mod);
+          const icon = safeUrl(mod.icon);
           html += `
             <div class="order-row">
-              <div class="order-icon">${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<span>📦</span>'}</div>
+              <div class="order-icon">${icon ? `<img src="${escapeHtml(icon)}" alt="">` : '<span>📦</span>'}</div>
               <div style="flex:1; min-width:180px;">
-                <strong>${escapeHtml(mod.name || 'Mod')}</strong>
-                <div style="font-size:0.85rem; color:#64748b;">${date} • $${amount.toFixed(2)}</div>
+                <strong>${escapeHtml(mod.name || p.modName || 'Mod')}</strong>
+                <div style="font-size:0.85rem; color:#64748b;">${escapeHtml(date)} • $${amount.toFixed(2)}</div>
                 ${ref ? `<div class="ref-id">Ref: ${escapeHtml(ref)}</div>` : ''}
               </div>
-              ${mod.fileUrl ? `<a class="buy-btn" style="text-decoration:none;" href="${escapeHtml(mod.fileUrl)}" download="${escapeHtml(mod.fileName || 'download')}">Download</a>` : ''}
+              ${seal
+                ? `<button class="buy-btn" type="button" data-seal="${escapeHtml(p.modId || mod.id || '')}" data-name="${escapeHtml(fileName)}">Download</button>`
+                : (fileUrl ? `<a class="buy-btn" style="text-decoration:none;" href="${escapeHtml(fileUrl)}" download="${escapeHtml(fileName)}">Download</a>` : '')}
             </div>
           `;
         }
         box.innerHTML = html;
+        box.querySelectorAll('[data-seal]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            try { await downloadOwnedFile(btn.dataset.seal, btn.dataset.name); }
+            catch (e) { btn.textContent = 'Try again'; btn.disabled = false; }
+          });
+        });
       } catch (err) {
         console.error(err);
         const msg = (err.message || '').includes('permission')

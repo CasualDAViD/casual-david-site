@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -56,6 +57,7 @@
         <button type="submit" id="submit" class="btn btn-primary">Sign in</button>
       </form>
       <a href="signup.html" class="create-link">New? Create account</a>
+      <p class="legal-note"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="cookies.html">Cookies</a></p>
     </div>
   </div>
   <script type="module" src="firebase-auth.js"></script>
@@ -66,7 +68,12 @@
       el.className = 'form-msg ' + (ok ? 'ok' : 'error');
     }
 
-    const next = new URLSearchParams(location.search).get('next') || 'index.html';
+    function safeNext(value) {
+      if (!value || value.charAt(0) !== '/' || value.charAt(1) === '/' || value.indexOf('\\') >= 0) return '';
+      if (/[\u0000-\u001f]/.test(value) || value.length > 300) return '';
+      return value;
+    }
+    const next = safeNext(new URLSearchParams(location.search).get('next')) || 'index.html';
 
     function waitForFirebase(maxWait = 5000) {
       return new Promise((resolve) => {

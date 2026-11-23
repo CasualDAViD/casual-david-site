@@ -420,3 +420,21 @@ describe('payments switched off', () => {
     assert.equal((await new Client(srv.url).get('/api/config')).json.payments, false);
   });
 });
+
+describe('payment rate limit', () => {
+  let srv, mod;
+  before(async () => {
+    srv = await startTestServer({ paymentRateLimit: 2 });
+    const admin = await makeAdmin(srv);
+    mod = await createMod(admin);
+  });
+  after(async () => { await srv.close(); });
+
+  test('checkout is rate limited per address', async () => {
+    const { client } = await signUp(srv);
+    const codes = [];
+    for (let i = 0; i < 4; i++) codes.push((await client.post('/api/orders', { modId: mod.id })).status);
+    assert.deepEqual(codes.slice(0, 2), [201, 201]);
+    assert.ok(codes.slice(2).every((s) => s === 429), `expected 429s, got ${codes}`);
+  });
+});

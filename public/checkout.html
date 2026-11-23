@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.googleapis.com https://*.gstatic.com https://apis.google.com https://accounts.google.com https://*.workers.dev https://api.paystack.co; frame-src 'self' https://accounts.google.com https://*.google.com https://*.firebaseapp.com https://*.web.app https://checkout.paystack.com https://*.paystack.com; object-src 'none'; base-uri 'self'; form-action 'self' https://checkout.paystack.com https://*.paystack.com">
 <script>(function(){var t=localStorage.getItem("cd_theme")||"system";if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t);})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -85,6 +86,7 @@
         <div class="summary-row summary-total"><span>You pay</span><span id="total"></span></div>
         <p id="charge-note" style="font-size:0.8rem; color:#64748b; margin-top:0.5rem;"></p>
         <button class="pay-btn" id="pay-btn" disabled>Pay with Paystack</button>
+        <p class="legal-note">By paying you agree to the <a href="terms.html">Terms of Use</a> and <a href="refund.html">Refund Policy</a>.</p>
         <p id="pay-msg" role="alert" style="font-size:0.9rem; margin-top:0.75rem; text-align:center; color:#dc2626;"></p>
       </div>
     </div>
@@ -93,6 +95,12 @@
   <footer class="footer">
     <div class="container footer-inner">
       <p>&copy; 2026 Casual_DAViD</p>
+      <nav class="footer-links" aria-label="Legal">
+        <a href="privacy.html">Privacy</a>
+        <a href="terms.html">Terms</a>
+        <a href="refund.html">Refunds</a>
+        <a href="cookies.html">Cookies</a>
+      </nav>
       <p>NOT AFFILIATED WITH MOJANG OR MICROSOFT</p>
     </div>
   </footer>
@@ -101,7 +109,6 @@
   <script type="module" src="firebase-mods.js"></script>
   <script src="api.js"></script>
   <script>
-    const PAYSTACK_WORKER = 'https://casualdavid-paystack.okpeidavid7.workers.dev/';
     const params = new URLSearchParams(location.search);
     const modId = params.get('id') || '';
     const payBtn = document.getElementById('pay-btn');
@@ -139,7 +146,7 @@
 
     function updateTotal() {
       const discount = appliedPromo ? basePrice * (appliedPromo.percent / 100) : 0;
-      const finalPrice = Math.max(0, basePrice - discount);
+      const finalPrice = appliedPromo && appliedPromo.amountUsd != null ? appliedPromo.amountUsd : Math.max(0, basePrice - discount);
       const currency = getCurrency();
       document.getElementById('price').textContent = formatPrice(basePrice, currency);
       const discountRow = document.getElementById('discount-row');
@@ -149,7 +156,9 @@
       } else {
         discountRow.style.display = 'none';
       }
-      const ngn = formatPrice(finalPrice, 'NGN');
+      const ngn = appliedPromo && appliedPromo.amountNgn
+        ? '₦' + Number(appliedPromo.amountNgn).toLocaleString()
+        : formatPrice(finalPrice, 'NGN');
       document.getElementById('total').textContent = ngn;
       document.getElementById('charge-note').textContent = 'You will be charged in Nigerian naira (' + ngn + ').';
     }
@@ -165,40 +174,22 @@
       status.textContent = 'Checking…';
       status.style.color = '#64748b';
       try {
-        const db = (await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js')).getFirestore();
-        const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js');
-        const snap = await getDoc(doc(db, 'promos', code));
-        if (!snap.exists()) {
+        const token = await currentUser.getIdToken();
+        const res = await fetch(CD_PAYSTACK_URL + 'quote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ modId: modId, promoCode: code })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
           appliedPromo = null;
-          status.textContent = 'Code not found.';
+          status.textContent = data.error || 'Could not check code.';
           status.style.color = '#dc2626';
           updateTotal();
           return;
         }
-        const p = snap.data();
-        if (p.unlisted) {
-          appliedPromo = null;
-          status.textContent = 'Code expired.';
-          status.style.color = '#dc2626';
-          updateTotal();
-          return;
-        }
-        if (p.expiresAt && Date.now() > p.expiresAt) {
-          appliedPromo = null;
-          status.textContent = 'Code expired.';
-          status.style.color = '#dc2626';
-          updateTotal();
-          return;
-        }
-        if (p.maxUses && (p.uses || 0) >= p.maxUses) {
-          appliedPromo = null;
-          status.textContent = 'Code used up.';
-          status.style.color = '#dc2626';
-          updateTotal();
-          return;
-        }
-        appliedPromo = p;
-        status.textContent = p.percent + '% off applied!';
+        appliedPromo = { code: code, percent: data.percent, amountUsd: data.amountUsd, amountNgn: data.amountNgn };
+        status.textContent = data.percent + '% off applied!';
         status.style.color = '#16a34a';
         updateTotal();
       } catch (err) {
@@ -235,7 +226,7 @@
       const currency = getCurrency();
 
       document.getElementById('order-item').innerHTML = `
-        ${mod.icon ? `<img src="${escapeHtml(mod.icon)}" alt="">` : '<div style="width:56px;height:56px;background:#f1f5f9;border-radius:10px;"></div>'}
+        ${safeUrl(mod.icon) ? `<img src="${escapeHtml(safeUrl(mod.icon))}" alt="">` : '<div style="width:56px;height:56px;background:#f1f5f9;border-radius:10px;"></div>'}
         <div>
           <strong>${escapeHtml(mod.name)}</strong>
           <div style="font-size:0.85rem; color:#64748b;">Delivery: Instant</div>
@@ -256,18 +247,19 @@
       showError('');
 
       try {
-        const versions = currentMod.versions || [];
-        const price = appliedPromo ? Math.max(0, basePrice * (1 - appliedPromo.percent / 100)) : basePrice;
+        const price = appliedPromo && appliedPromo.amountUsd != null ? appliedPromo.amountUsd : basePrice;
+        const token = await currentUser.getIdToken();
 
-        const res = await fetch(PAYSTACK_WORKER, {
+        const res = await fetch(CD_PAYSTACK_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
           body: JSON.stringify({
             email: currentUser.email,
             amountUsd: price,
             modId: currentMod.id,
             modName: currentMod.name,
             userId: currentUser.uid,
+            promoCode: appliedPromo ? appliedPromo.code : '',
             callbackUrl: location.origin + '/order-complete.html'
           })
         });
@@ -276,8 +268,11 @@
         if (!res.ok || !data.authorization_url) {
           throw new Error(data.error || 'Could not start payment');
         }
-
-        location.href = data.authorization_url;
+        const dest = new URL(data.authorization_url);
+        if (dest.protocol !== 'https:' || !(dest.hostname === 'paystack.com' || dest.hostname.endsWith('.paystack.com'))) {
+          throw new Error('Could not start payment');
+        }
+        location.href = dest.href;
       } catch (err) {
         payBtn.textContent = 'Pay with Paystack';
         payBtn.disabled = false;
